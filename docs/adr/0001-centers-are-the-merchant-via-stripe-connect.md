@@ -1,0 +1,3 @@
+# Centers are the merchant, via Stripe Connect
+
+Families pay tuition to their Center, not to DC Management, so each Center has its own Stripe account through Stripe Connect and DC Management earns a per-child subscription from the Organization, paid by card in v1. This keeps DC Management from holding families' tuition and leaves refunds and disputes with the Center. DC Management takes no per-payment fee, which supports its lower-cost positioning but means the subscription has to cover its costs. Bank debit is the default payment method, cards are also accepted, and each Center chooses whether it or the family pays card fees.
