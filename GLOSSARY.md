@@ -45,6 +45,12 @@ An Authorized Pickup whose permission covers a single pickup only.
 **Emergency Contact**:
 A person to call about a specific child in an emergency.
 
+**Pickup Restriction**:
+A bar on a specific person collecting a specific child, applied by an Admin.
+
+**Records Restriction**:
+A bar, applied by an Admin, on a Guardian seeing anything about a specific child other than invoices they're the Payer for.
+
 ### Daily operations
 
 **Room**:
