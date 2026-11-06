@@ -1,0 +1,3 @@
+# Serverless AWS with Flutter and DynamoDB
+
+The product uses serverless services wherever possible: Flutter for the web and mobile apps, S3 and CloudFront for web hosting, TypeScript on Lambda and Step Functions for the backend, EventBridge where needed, DynamoDB as the only database, Cognito for login, and CDK in TypeScript for all infrastructure. This was chosen over a TypeScript-only stack with PostgreSQL. Rust was considered for the backend, but TypeScript keeps the backend and CDK in one language and has an official Stripe library. The tradeoffs are that DynamoDB needs its queries planned up front and makes ad hoc reporting harder, and that Flutter's Dart can't share code with the TypeScript backend.
