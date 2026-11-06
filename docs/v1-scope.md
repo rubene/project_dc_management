@@ -44,7 +44,8 @@ What the first release of DC Management includes, and what it leaves for later. 
 - A One-Time Authorized Pickup needs a single-use PIN from a Guardian and a manual ID check, and the app doesn't store a copy of the ID.
 - If there's a mismatch, Staff don't release the child and they contact a Guardian and an Admin.
 - Only Admins change who's a Guardian or apply restrictions, with a reason and history kept.
-- Pickup and records restrictions are separate, because court orders vary.
+- Pickup Restrictions and Records Restrictions are separate, because court orders vary.
+- A Records Restriction hides everything about the child from that Guardian, including Child Updates, photos, Conversations and Attendance. If they're the Payer, they still see their own invoices.
 - Guardians manage Authorized Pickups and Emergency Contacts, within those restrictions.
 
 ### Rooms and Ratios
@@ -78,7 +79,7 @@ What the first release of DC Management includes, and what it leaves for later. 
 
 ### Reports and data
 
-- V1 includes only the licensing reports Centers can't go without.
+- V1 licensing reports are Attendance and the Sign-in/out log, showing who recorded each entry and any corrections.
 - The Center controls its records and sets their retention period.
 - Former Guardians get a limited window to download their child's photos.
 - A cancelling Center gets a time-limited full export before deletion.
@@ -110,6 +111,5 @@ Payroll and time cards aren't planned.
 - Set the per-child price after modeling costs, including Stripe, email, photo storage and support.
 - Get a legal review of privacy and children's data in both countries, storing Canadian data in the US, default retention periods, deletion requests, and passing card fees to families.
 - Confirm the PCI requirements that apply.
-- Prototype data-heavy Admin screens in Flutter web to check they're fast and accessible.
 - Plan a pilot Center.
 - Add more detail on current app frustrations from the project owner and a working educator.
