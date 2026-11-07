@@ -16,7 +16,7 @@ Everything runs in `us-west-2` ([ADR 0006](adr/0006-single-region-us-west-2.md))
 ## The API
 
 - **One contract.** [`api/openapi.yaml`](../api/openapi.yaml) describes every operation. The apps' Dart client is generated from it, and every API test checks responses against it.
-- **One Lambda.** API Gateway sends every request to a single API Lambda, which routes by method and path (`backend/src/app.ts`). Adding an operation means adding a route and documenting it in the OpenAPI definition.
+- **One Lambda.** API Gateway sends every request to a single API Lambda, which routes by method and path (`backend/src/app.ts`). Adding an operation means adding a route and documenting it in the OpenAPI definition. Scheduled jobs, Step Functions steps and the Assistant will get their own functions that reuse the same app code ([ADR 0009](adr/0009-one-lambda-serves-the-whole-api.md)).
 - **Dependencies are passed in.** The app is built from its dependencies (`createApp({ clock, db, tableName })`). The Lambda passes the real ones; tests pass DynamoDB Local and fakes.
 - **Time comes from the `Clock`.** Business rules call `clock.now()`, never `new Date()`, so tests can set the time.
 
