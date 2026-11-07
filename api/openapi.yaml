@@ -53,3 +53,11 @@ components:
         database:
           type: string
           enum: [unavailable]
+    Error:
+      description: Returned for requests the API can't serve, such as a path it doesn't have (404).
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message:
+          type: string

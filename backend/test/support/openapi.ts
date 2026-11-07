@@ -22,15 +22,18 @@ ajv.addSchema(
   { $id: "openapi", components: definition.components ?? {} },
 );
 
-export function isDocumented(method: string, path: string) {
-  return Boolean(definition.paths[path]?.[method.toLowerCase()]);
-}
-
+// Paths the definition doesn't describe must return its Error response with
+// a 404, so a route added without documenting it fails the tests.
 export function assertMatchesDefinition(
   method: string, path: string, status: number, body: unknown,
 ) {
   const operation = definition.paths[path]?.[method.toLowerCase()];
-  if (!operation) throw new Error(`${method} ${path} is not in the OpenAPI definition`);
+  if (!operation) {
+    if (status !== 404) {
+      throw new Error(`${method} ${path} returned ${status}, but it isn't in the OpenAPI definition`);
+    }
+    return assertMatchesSchema(`${method} ${path} ${status}`, { $ref: "#/components/schemas/Error" }, body);
+  }
 
   const response = operation.responses[String(status)];
   if (!response) {
@@ -38,12 +41,14 @@ export function assertMatchesDefinition(
   }
 
   const schema = response.content?.["application/json"]?.schema;
-  if (!schema) return;
+  if (schema) assertMatchesSchema(`${method} ${path} ${status}`, schema, body);
+}
 
+function assertMatchesSchema(label: string, schema: object, body: unknown) {
   const validate = ajv.compile(rewriteRefs(schema));
   if (!validate(body)) {
     throw new Error(
-      `${method} ${path} ${status} doesn't match the OpenAPI definition: ` +
+      `${label} doesn't match the OpenAPI definition: ` +
       ajv.errorsText(validate.errors) + `\nBody: ${JSON.stringify(body)}`,
     );
   }

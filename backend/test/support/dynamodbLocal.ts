@@ -67,7 +67,7 @@ export function localClient(endpoint: string) {
 }
 
 async function waitUntilReady(client: DynamoDBClient) {
-  for (let attempt = 0; attempt < 50; attempt++) {
+  for (let attempt = 0; attempt < 150; attempt++) {
     try {
       await client.send(new ListTablesCommand({}));
       return;

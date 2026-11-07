@@ -2,6 +2,7 @@ import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import type { Clock } from "./clock.js";
 import { getHealth } from "./health.js";
+import { json } from "./http.js";
 
 export type Deps = {
   clock: Clock;
@@ -22,13 +23,5 @@ export function createApp(deps: Deps) {
     const route = routes[`${event.httpMethod} ${event.path}`];
     if (!route) return json(404, { message: "Not found" });
     return route(deps);
-  };
-}
-
-export function json(statusCode: number, body: unknown): APIGatewayProxyResult {
-  return {
-    statusCode,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
   };
 }

@@ -1,5 +1,6 @@
 import { GetCommand } from "@aws-sdk/lib-dynamodb";
-import { json, type Deps } from "./app.js";
+import type { Deps } from "./app.js";
+import { json } from "./http.js";
 import { mainTableKeys } from "./mainTable.js";
 
 export async function getHealth({ clock, db, tableName }: Deps) {

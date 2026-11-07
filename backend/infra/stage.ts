@@ -18,21 +18,35 @@ type StageSettings = {
   logRetention: RetentionDays;
 };
 
-const stages: Record<string, StageSettings> = {
+const stages = {
   dev: { retainData: false, logRetention: RetentionDays.TWO_WEEKS },
   staging: { retainData: true, logRetention: RetentionDays.ONE_MONTH },
   prod: { retainData: true, logRetention: RetentionDays.ONE_YEAR },
-};
+} satisfies Record<string, StageSettings>;
+
+// A deploy environment, each in its own AWS account. Not to be confused with
+// API Gateway's own stage, which is always "v1".
+export type Stage = keyof typeof stages;
+export const stageNames = Object.keys(stages) as Stage[];
+
+export function stackName(stage: Stage) {
+  return `dc-${stage}`;
+}
+
+function isStage(name: string): name is Stage {
+  return Object.hasOwn(stages, name);
+}
 
 export function createStage(scope: Construct, stage: string, { account }: { account: string }) {
-  const settings = stages[stage];
-  if (!settings) {
-    throw new Error(`Unknown stage "${stage}". Expected one of: ${Object.keys(stages).join(", ")}`);
+  if (!isStage(stage)) {
+    throw new Error(`Unknown stage "${stage}". Expected one of: ${stageNames.join(", ")}`);
   }
+  const settings: StageSettings = stages[stage];
+  const name = stackName(stage);
   const removalPolicy = settings.retainData ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY;
 
-  const stack = new Stack(scope, `dc-${stage}`, {
-    stackName: `dc-${stage}`,
+  const stack = new Stack(scope, name, {
+    stackName: name,
     env: { account, region },
   });
   Tags.of(stack).add("project", "dc-management");
@@ -64,7 +78,7 @@ export function createStage(scope: Construct, stage: string, { account }: { acco
 
   const api = new LambdaRestApi(stack, "Api", {
     handler: apiFunction,
-    restApiName: `dc-${stage}`,
+    restApiName: name,
     deployOptions: { stageName: "v1" },
   });
 
