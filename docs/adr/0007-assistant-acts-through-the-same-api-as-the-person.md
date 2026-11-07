@@ -1,0 +1,3 @@
+# The Assistant acts through the same API as the person
+
+The Assistant can only call the same API operations the apps use, acting as the person talking to it, so the API enforces every permission and restriction exactly as it does for the screens. The Assistant never acts on its own: anything that changes data becomes a Proposed Action that the person must confirm. This was chosen over giving the Assistant its own data access, so it can never see or do more than the person could on screen, every rule is tested once at the API, and each new API operation becomes available to the Assistant with little extra work.

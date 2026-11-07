@@ -5,7 +5,7 @@ What the first release of DC Management includes, and what it leaves for later. 
 ## Who it's for
 
 - **Customers:** independent Centers with about 30–150 children, in the US and Canada, excluding Quebec for now.
-- **Why they'd switch:** a lower price and a better daily experience for Staff and Guardians than existing apps.
+- **Why they'd switch:** a lower price, a better daily experience for Staff and Guardians than existing apps, and an Assistant that lets Staff log their day by voice while their hands are full.
 - **Quality bar:** Staff stay logged in, can add many photos easily, and can use the app while managing children.
 
 ## Pricing
@@ -84,11 +84,38 @@ What the first release of DC Management includes, and what it leaves for later. 
 - Former Guardians get a limited window to download their child's photos.
 - A cancelling Center gets a time-limited full export before deletion.
 
+### Assistant
+
+- **Who uses it for what:**
+  - Staff use the Assistant by voice or chat for Child Updates, Sign-in/out and Room Transfers.
+  - Guardians and Admins use it to ask questions, which only read data.
+- **Where it appears:**
+  - Staff get push-to-talk and chat on every screen of the mobile app.
+  - Guardians get chat in the mobile app.
+  - Admins get a chat panel in the web app.
+- **Proposed Actions:**
+  - Every change the Assistant prepares is a Proposed Action, carried out only when the person confirms it. Questions need no confirmation.
+  - One request can create several Proposed Actions, confirmed with one tap.
+  - Safety-critical actions such as Sign-in/out are each confirmed on their own, and are never included in "confirm all".
+  - Actions are recorded as the person's own, marked as done through the Assistant.
+- **When it's unsure:** the Assistant never guesses. It asks one short question, favoring children in the speaker's current Room. If it still can't tell, it opens the normal screen with what it understood filled in.
+- **Permissions:** the Assistant has exactly the person's permissions, and every rule still applies, including restrictions and PIN and ID checks.
+- **Voice:**
+  - Voice capture works only while a button is held. There's no always-on listening.
+  - Speech becomes text on the phone, and the audio is never kept.
+  - The Assistant understands English and Spanish, and answers in the language used. The screens stay English-only.
+- **What it keeps and sees:**
+  - Request and reply text is kept for 30 days, then deleted.
+  - The model sees only what the API returns for that person, never photos.
+  - Anything people wrote is treated as information, never as instructions.
+- **Cost to Centers:** the Assistant is included in the plan, with a monthly fair-use limit per Center that's set after measuring pilot usage.
+
 ## Later
 
 - **Features:** waitlist and online applications, staff scheduling, curriculum and lesson planning, child portfolios, advanced reporting and analytics.
 - **Billing:** tuition split between Payers, year-end statements, filing subsidy claims (v1 records subsidies as a manual credit), and bank debit for subscriptions.
 - **Product:** offline use, Admin tools in the app, and Quebec.
+- **Assistant:** the remaining actions through the Assistant, voice for Guardians and Admins, and French.
 
 Payroll and time cards aren't planned.
 
@@ -104,6 +131,11 @@ Payroll and time cards aren't planned.
 - **Stripe:** DC Management holds the prices and rules, and creates invoices in each Center's Stripe account. Stripe handles collection, receipts and retries. Billing runs must never charge a family twice.
 - **Infrastructure:** CDK in TypeScript, in `us-west-2`. Only a dev account exists until v1 is code complete, but the CDK must support staging and production.
 - **Test data:** the dev account only ever holds made-up data, and any pilot with a real Center waits for production.
+- **Assistant:**
+  - Claude runs through Amazon Bedrock on a US cross-region inference profile.
+  - Claude Opus 5.5 is used during development. A switch to Claude Haiku 5.5 happens only if it matches Opus on the Assistant's test set.
+  - Speech is transcribed on the phone, with Amazon Transcribe as the fallback if testing shows it isn't accurate enough.
+  - API tests use a fake model. A test set of realistic requests runs against the real model before each release, covering English and Spanish, noisy transcripts, duplicate names and injection attempts.
 - **Documentation:** a short `README.md`, `docs/architecture.md` and `docs/runbook.md`, updated in the same PR as the code they describe.
 
 ## Still to do before launch
@@ -112,4 +144,6 @@ Payroll and time cards aren't planned.
 - Get a legal review of privacy and children's data in both countries, storing Canadian data in the US, default retention periods, deletion requests, and passing card fees to families.
 - Confirm the PCI requirements that apply.
 - Plan a pilot Center.
+- Include the Assistant in the legal review, including Bedrock's data terms, and set its fair-use limit from pilot usage.
+- Confirm access to Claude on Bedrock with one test request, and test on-device speech on the phones Staff actually use.
 - Add more detail on current app frustrations from the project owner and a working educator.

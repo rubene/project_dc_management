@@ -107,3 +107,13 @@ _Avoid_: Daily report, activity
 
 **Photo Consent**:
 A Guardian's permission for photos showing their child to be shared with other children's Guardians.
+
+### Assistant
+
+**Assistant**:
+The chat and voice interface through which a person asks questions or requests actions in plain language.
+_Avoid_: Bot, chatbot, AI, agent
+
+**Proposed Action**:
+An action the Assistant has prepared from a request, which is carried out only once the person confirms it.
+_Avoid_: Suggestion, draft
