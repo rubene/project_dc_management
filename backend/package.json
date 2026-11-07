@@ -1,0 +1,38 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "DC Management backend: API Lambdas and CDK infrastructure",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project api --project infra",
+    "test:watch": "vitest --project api --project infra",
+    "cdk": "cdk",
+    "synth": "cdk synth -c stage=dev --profile project_dc",
+    "deploy:dev": "cdk deploy -c stage=dev --profile project_dc --require-approval never --outputs-file cdk-outputs.dev.json && npm run check:deployed",
+    "check:deployed": "vitest run --project deployed"
+  },
+  "license": "UNLICENSED",
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1164.0",
+    "@aws-sdk/lib-dynamodb": "^3.1164.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.164",
+    "@types/node": "^26.6.6",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "aws-cdk": "^2.1148.0",
+    "aws-cdk-lib": "^2.275.0",
+    "constructs": "^10.8.1",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0",
+    "yaml": "^2.9.1"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  }
+}
