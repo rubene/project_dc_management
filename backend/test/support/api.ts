@@ -7,14 +7,14 @@ import { localClient } from "./dynamodbLocal.js";
 import { assertMatchesDefinition } from "./openapi.js";
 import type { Clock } from "../../src/clock.js";
 
-type Options = { clock?: Clock; tableName?: string };
+type Options = { clock?: Clock; tableName?: string; dynamoEndpoint?: string };
 
 // Calls the real API handler in-process, the way API Gateway would, against
 // DynamoDB Local. Every response is checked against the OpenAPI definition.
 export function testApi(options: Options = {}) {
   const app = createApp({
     clock: options.clock ?? fixedClock("2026-01-01T00:00:00.000Z"),
-    db: DynamoDBDocumentClient.from(localClient(inject("dynamoEndpoint"))),
+    db: DynamoDBDocumentClient.from(localClient(options.dynamoEndpoint ?? inject("dynamoEndpoint"))),
     tableName: options.tableName ?? inject("tableName"),
   });
 
