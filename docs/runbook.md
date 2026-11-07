@@ -17,6 +17,12 @@ npm run check:deployed                 # dev
 STAGE=staging npm run check:deployed   # another stage, after deploying it with --outputs-file cdk-outputs.staging.json
 ```
 
+Without a local `cdk-outputs.<stage>.json` (a fresh checkout, or CI), pass the API's URL instead:
+
+```sh
+API_URL=https://<api-id>.execute-api.us-west-2.amazonaws.com/v1/ npm run check:deployed
+```
+
 You can also call it by hand: `curl <ApiUrl>health`. A healthy API returns `{"status":"ok","database":"ok","time":"…"}`.
 
 ## Common problems
