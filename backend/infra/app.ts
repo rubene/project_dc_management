@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { App } from "aws-cdk-lib";
 import { createStageStack, parseStage } from "./stage.js";
 
@@ -16,4 +18,10 @@ if (!account) {
   throw new Error("No AWS account found. Pass an AWS profile, for example --profile project_dc");
 }
 
-createStageStack(app, parseStage(stage), { account });
+// `npm run deploy:dev` builds the Admin web app before deploying.
+const adminWebDir = fileURLToPath(new URL("../../apps/admin_web/build/web", import.meta.url));
+if (!existsSync(`${adminWebDir}/index.html`)) {
+  throw new Error("No Admin web build found. Run: npm run build:admin-web");
+}
+
+createStageStack(app, parseStage(stage), { account, adminWebDir });

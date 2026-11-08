@@ -7,8 +7,9 @@
     "test": "vitest run --project api --project infra",
     "test:watch": "vitest --project api --project infra",
     "cdk": "cdk",
-    "synth": "cdk synth -c stage=dev --profile project_dc",
-    "deploy:dev": "cdk deploy -c stage=dev --profile project_dc --require-approval never --outputs-file cdk-outputs.dev.json && npm run check:deployed",
+    "build:admin-web": "cd ../apps/admin_web && flutter build web --release --suppress-analytics",
+    "synth": "npm run build:admin-web && cdk synth -c stage=dev --profile project_dc",
+    "deploy:dev": "npm run build:admin-web && cdk deploy -c stage=dev --profile project_dc --require-approval never --outputs-file cdk-outputs.dev.json && npm run check:deployed",
     "check:deployed": "vitest run --project deployed"
   },
   "license": "UNLICENSED",
