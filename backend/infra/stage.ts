@@ -1,10 +1,21 @@
 import { fileURLToPath } from "node:url";
 import { CfnOutput, Duration, RemovalPolicy, Stack, Tags } from "aws-cdk-lib";
 import { LambdaRestApi } from "aws-cdk-lib/aws-apigateway";
+import {
+  AllowedMethods,
+  CachePolicy,
+  Distribution,
+  OriginProtocolPolicy,
+  OriginRequestPolicy,
+  ViewerProtocolPolicy,
+} from "aws-cdk-lib/aws-cloudfront";
+import { HttpOrigin, S3BucketOrigin } from "aws-cdk-lib/aws-cloudfront-origins";
 import { AttributeType, Billing, TableV2 } from "aws-cdk-lib/aws-dynamodb";
 import { Architecture, Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
+import { BlockPublicAccess, Bucket, BucketEncryption } from "aws-cdk-lib/aws-s3";
+import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
 import type { Construct } from "constructs";
 import { mainTableKeys } from "../src/mainTable.js";
 
@@ -41,7 +52,13 @@ export function parseStage(name: string): Stage {
   return name as Stage;
 }
 
-export function createStageStack(scope: Construct, stage: Stage, { account }: { account: string }) {
+type StageStackProps = {
+  account: string;
+  // The Admin web app's release build (`flutter build web`), uploaded on deploy.
+  adminWebDir: string;
+};
+
+export function createStageStack(scope: Construct, stage: Stage, { account, adminWebDir }: StageStackProps) {
   const settings: StageSettings = stages[stage];
   const name = stackName(stage);
   const removalPolicy = settings.retainData ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY;
@@ -84,6 +101,50 @@ export function createStageStack(scope: Construct, stage: Stage, { account }: { 
   });
 
   new CfnOutput(stack, "ApiUrl", { value: api.url });
+
+  // The Admin web app: a private bucket that only this stage's CloudFront
+  // distribution can read, through Origin Access Control.
+  const adminWebBucket = new Bucket(stack, "AdminWebBucket", {
+    blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+    encryption: BucketEncryption.S3_MANAGED,
+    enforceSSL: true,
+    removalPolicy: RemovalPolicy.DESTROY,
+    autoDeleteObjects: true,
+  });
+
+  // The same distribution passes /v1/* to the API, so the app calls its own
+  // origin and the API needs no CORS. The API's "v1" stage is part of the
+  // path, so the origin is the API's host with no origin path.
+  const adminWeb = new Distribution(stack, "AdminWeb", {
+    comment: `${name} Admin web app`,
+    defaultRootObject: "index.html",
+    defaultBehavior: {
+      origin: S3BucketOrigin.withOriginAccessControl(adminWebBucket),
+      viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+    },
+    additionalBehaviors: {
+      "/v1/*": {
+        origin: new HttpOrigin(`${api.restApiId}.execute-api.${region}.amazonaws.com`, {
+          protocolPolicy: OriginProtocolPolicy.HTTPS_ONLY,
+        }),
+        viewerProtocolPolicy: ViewerProtocolPolicy.HTTPS_ONLY,
+        allowedMethods: AllowedMethods.ALLOW_ALL,
+        cachePolicy: CachePolicy.CACHING_DISABLED,
+        // API Gateway needs its own Host header, so pass everything else.
+        originRequestPolicy: OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+      },
+    },
+  });
+
+  new BucketDeployment(stack, "AdminWebDeployment", {
+    sources: [Source.asset(adminWebDir)],
+    destinationBucket: adminWebBucket,
+    distribution: adminWeb,
+  });
+
+  new CfnOutput(stack, "AdminWebUrl", { value: `https://${adminWeb.distributionDomainName}/` });
+  // Only for the deployed check, which confirms the bucket refuses direct requests.
+  new CfnOutput(stack, "AdminWebBucketUrl", { value: `https://${adminWebBucket.bucketRegionalDomainName}/` });
 
   return stack;
 }

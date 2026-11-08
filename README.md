@@ -10,6 +10,10 @@ A lower-priced daycare management service for independent Centers in the US and 
 | `backend/src/` | The API, running on Lambda in TypeScript |
 | `backend/infra/` | All infrastructure, in CDK (TypeScript) |
 | `backend/test/` | API tests, infrastructure tests and the deployed check |
+| `apps/mobile/` | The Flutter app for Staff and Guardians, on iOS and Android |
+| `apps/admin_web/` | The Flutter web app for Admins, hosted on S3 behind CloudFront |
+| `packages/api_client/` | The Dart API client, generated from `api/openapi.yaml`. Don't edit it by hand |
+| `packages/ui/` | The UI library both apps share |
 | `docs/` | [Architecture](docs/architecture.md), [runbook](docs/runbook.md), ADRs and v1 scope |
 
 ## Set up
@@ -18,6 +22,7 @@ You need:
 
 - Node from [`.nvmrc`](.nvmrc): `nvm install && nvm use`
 - Docker running, for DynamoDB Local
+- Flutter 3.35 or later, for the apps and for deploying (the deploy builds the Admin web app)
 - For deploying: the AWS CLI with a `project_dc` profile for the dev account
 
 ```sh
@@ -27,16 +32,39 @@ npm test          # API tests against DynamoDB Local, plus CDK stage tests
 npm run typecheck
 ```
 
+Apps:
+
+```sh
+cd apps/mobile      # or apps/admin_web
+flutter pub get
+flutter test        # screen tests against a fake API, using the generated client
+flutter analyze
+```
+
+Run the mobile app on a simulator or emulator against a deployed API, using the `ApiUrl` from `backend/cdk-outputs.dev.json`:
+
+```sh
+cd apps/mobile
+flutter run --dart-define=API_URL=https://<api-id>.execute-api.us-west-2.amazonaws.com/v1/
+```
+
+After changing `api/openapi.yaml`, regenerate the Dart client and commit the result (needs Docker):
+
+```sh
+packages/generate-api-client.sh
+```
+
 ## Deploy
 
 ```sh
 cd backend
-npm run deploy:dev   # deploys to us-west-2, then runs the deployed check
+npm run deploy:dev   # builds the Admin web app, deploys to us-west-2, then runs the deployed check
 ```
 
 Staging and production are created the same way from another account's profile, with no code changes:
 
 ```sh
+npm run build:admin-web
 npx cdk deploy -c stage=staging --profile <staging-profile> --outputs-file cdk-outputs.staging.json
 STAGE=staging npm run check:deployed
 ```

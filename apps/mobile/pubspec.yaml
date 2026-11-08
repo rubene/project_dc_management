@@ -1,0 +1,25 @@
+name: dc_mobile
+description: The DC Management app for Staff and Guardians, on iOS and Android.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.9.0
+  flutter: ">=3.35.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dc_api_client:
+    path: ../../packages/api_client
+  dc_ui:
+    path: ../../packages/ui
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  http: ^1.5.0
+
+flutter:
+  uses-material-design: true
