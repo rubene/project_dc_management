@@ -16,7 +16,7 @@ export async function getHealth({ clock, db, tableName }: Deps) {
       Key: { [mainTableKeys.partitionKey]: "HEALTH", [mainTableKeys.sortKey]: "HEALTH" },
     }), { abortSignal: AbortSignal.timeout(databaseDeadlineMs) });
   } catch (error) {
-    console.error("Health check couldn't read the main table", { tableName, error });
+    console.error("Health check couldn't read the main table", { operation: "getHealth", tableName, error });
     return json(503, { status: "unavailable", database: "unavailable" });
   }
   return json(200, { status: "ok", database: "ok", time: clock.now().toISOString() });

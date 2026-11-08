@@ -31,6 +31,10 @@ You can also call it by hand: `curl <ApiUrl>health`. A healthy API returns `{"st
 
 The API tests start DynamoDB Local in Docker. Start Docker Desktop and run the tests again.
 
+### `npm test` fails with "DynamoDB Local didn't become ready within 30 seconds"
+
+The test setup started DynamoDB Local but couldn't create the test table in time. The error's `cause` shows the last failure. Usually Docker is short of resources: check that `docker run --rm amazon/dynamodb-local:3.3.2 -version` runs quickly, give Docker Desktop more memory if not, and run the tests again.
+
 ### A test run was killed and left DynamoDB Local running
 
 ```sh

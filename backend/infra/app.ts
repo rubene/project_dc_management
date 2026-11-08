@@ -1,5 +1,5 @@
 import { App } from "aws-cdk-lib";
-import { createStage } from "./stage.js";
+import { createStageStack, parseStage } from "./stage.js";
 
 // Usage: npx cdk deploy -c stage=<dev|staging|prod> --profile <profile>
 // The account comes from the AWS profile, so staging and production are
@@ -16,4 +16,4 @@ if (!account) {
   throw new Error("No AWS account found. Pass an AWS profile, for example --profile project_dc");
 }
 
-createStage(app, stage, { account });
+createStageStack(app, parseStage(stage), { account });

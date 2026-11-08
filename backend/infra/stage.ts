@@ -33,14 +33,15 @@ export function stackName(stage: Stage) {
   return `dc-${stage}`;
 }
 
-function isStage(name: string): name is Stage {
-  return Object.hasOwn(stages, name);
+// For stage names from outside the code, such as `-c stage=` or STAGE.
+export function parseStage(name: string): Stage {
+  if (!Object.hasOwn(stages, name)) {
+    throw new Error(`Unknown stage "${name}". Expected one of: ${stageNames.join(", ")}`);
+  }
+  return name as Stage;
 }
 
-export function createStage(scope: Construct, stage: string, { account }: { account: string }) {
-  if (!isStage(stage)) {
-    throw new Error(`Unknown stage "${stage}". Expected one of: ${stageNames.join(", ")}`);
-  }
+export function createStageStack(scope: Construct, stage: Stage, { account }: { account: string }) {
   const settings: StageSettings = stages[stage];
   const name = stackName(stage);
   const removalPolicy = settings.retainData ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY;
