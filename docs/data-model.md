@@ -10,7 +10,7 @@ Terms follow [`GLOSSARY.md`](../GLOSSARY.md). In keys, `<c>` is a Center ID, `<o
 
 - Every record about a Center's operations has a partition key starting `C#<c>#`, or exactly `C#<c>`. Every secondary-index key starts the same way.
 - Keys are built only by one key-building module, which can't build a Center key without a Center ID. Request handlers get a data layer bound to the one Center the request was authorized for, so a handler can't read another Center's records even by mistake.
-- Only four partitions sit outside a Center, and none holds anything about a child:
+- Only five partitions sit outside a Center, and none holds anything about a child:
 
   | Partition | Why it can't be inside a Center |
   |---|---|
@@ -18,8 +18,9 @@ Terms follow [`GLOSSARY.md`](../GLOSSARY.md). In keys, `<c>` is a Center ID, `<o
   | `LOGIN#<cognito sub>` | Login happens before a Center is known |
   | `ORG#<o>` | An Organization sits above its Centers |
   | `STRIPEACCOUNT#<account>` | Some Stripe Connect webhooks identify only the account |
+| `CENTERS` | A list of every Center, for operations only. No request handler can reach it |
 
-- Scheduled jobs run one Center at a time. Each Center gets its own EventBridge Scheduler schedules, in its own timezone, for its closing-time check, billing runs and retention, so no job needs a query across Centers.
+- Scheduled jobs run one Center at a time. Each Center gets its own EventBridge Scheduler schedules, in its own timezone, for its closing-time check, billing runs and retention, so no job needs a query across Centers. Creating a Center, or changing its timezone or closing time, updates its schedules.
 
 ### Corrected records keep append-only history
 
@@ -29,11 +30,17 @@ Records that can be corrected use a **head and history** pair:
 - Every version, including the first, is also written as an immutable **history** item at `H#<head sort key>#<version, zero-padded>`. It holds the full record, who changed it, when, and the reason.
 - A change writes the new history item and updates the head in one transaction. The history put has the condition `attribute_not_exists`, and the head update has the condition `version = expected`, so two changes can't both win and nothing is ever overwritten.
 
-This applies to Sign-in/out, Room Transfers, Room presence, a child's people (Guardian status, Authorized Pickup, Emergency Contact, Pickup Restriction, Records Restriction) and Photo Consent.
+This applies to Sign-in/out, Room Transfers, Room presence, a child's people (Guardian status, Authorized Pickup, Emergency Contact, Pickup Restriction, Records Restriction), Photo Consent and the Center's profile.
+
+A record never moves partition, so a correction can't change a Sign-in/out's day. Instead an Admin **voids** it, which is a correction with a reason, and the replacement is entered as a new record. Staff can enter it as a late entry. A voided record:
+
+- no longer counts toward Attendance or `LIVE`
+- stays in the Sign-in/out log and licensing report, marked void with its reason
+- dismisses any late-fee suggestion it produced, unless an Admin already approved it. An approved Charge is left for the Admin to reverse.
 
 ### Records are ready for offline use (ADR 0004)
 
-- **IDs created on the device.** Records created in the apps take their ID from the device, as a ULID. ULIDs sort by creation time, which also lets retention delete old records by sort-key range. The API rejects IDs that aren't ULIDs.
+- **IDs created on the device.** Records created in the apps take their ID from the device, as a ULID. ULIDs sort by creation time, which also lets retention delete old records by sort-key range. The API rejects IDs that aren't ULIDs, and ULIDs whose time is more than 7 days from the server's clock, so a wrong device clock can't put a record outside retention. The window is revisited when offline use arrives in v2.
 - **Two times.** Each record has `occurredAt`, when it happened, as given by the person, and `recordedAt`, when the server saved it, from the `Clock`. Business rules use `occurredAt`. Day partitions use the Center-local date of `occurredAt`, so a late entry lands on the day it happened.
 - **Duplicate-safe retries.** A create is a put with the condition `attribute_not_exists(PK)`, and stores a hash of the request. If the put fails because the item exists, the API compares hashes. The same request gets the original result back, and a different one gets a conflict. A change to an existing record carries a device-created `changeId` and the version it expects, and is retried the same way. Records the server derives from another record, such as each child's copy of a Child Update, take a key built from the source's ID, so a retry writes the same keys.
 - Every record also stores `recordedBy` (the person), `recordedVia` (`app` or `assistant`) and `deviceId`.
@@ -41,7 +48,8 @@ This applies to Sign-in/out, Room Transfers, Room presence, a child's people (Gu
 ### Other conventions
 
 - Every item has `type` and `centerId` (or `orgId`) attributes, so the analytics export and the Center export don't parse keys.
-- Times are UTC ISO-8601 strings. The Center stores its IANA timezone for local dates and closing time.
+- Times are UTC ISO-8601 strings. The Center stores its IANA timezone for local dates and closing time. The Owner picks it when creating the Center, filled in from the browser. It can change later. Existing records keep the dates they were saved with, and the change keeps history.
+- A person's ID is separate from their Cognito user ID, because Authorized Pickups and Emergency Contacts without a login need IDs too. The token carries the person ID as a custom claim, so `LOGIN#<sub>` is read only at sign-up.
 - Short-lived items (sessions, invitations, Assistant text, dedupe markers) set a `ttl` attribute. DynamoDB deletes them lazily, so reads also check `expiresAt`.
 - Access checks always use strongly consistent reads of the base table, never the secondary index, so removing access takes effect on the next request.
 
@@ -52,10 +60,10 @@ This applies to Sign-in/out, Room Transfers, Room presence, a child's people (Gu
 | Partition key | Holds | Sort keys |
 |---|---|---|
 | `C#<c>` | The Center and its settings | `CENTER`, `ROOM#<room>`, `PLAN#<plan>`, `DISCOUNT#<id>`, `LATEFEE`, `BILLING`, `STRIPE`, `SETUP`, `IMPORT#<id>`, `RUN#<period start>`, `ASSISTANT#<yyyy-mm>` |
-| `C#<c>#PEOPLE` | Everyone the Center knows, with or without a login, and their Roles there | `PERSON#<p>`, `PIN#<p>`, `INVITE#<token hash>` |
+| `C#<c>#PEOPLE` | Everyone the Center knows, with or without a login, their Roles there, and a Staff member's assigned Room | `PERSON#<p>`, `PIN#<p>`, `INVITE#<token hash>` |
 | `C#<c>#DEVICES` | Registered devices, shared-tablet sessions | `DEVICE#<device>`, `SESSION#<session>` |
 | `C#<c>#ROSTER` | One item per child: name, Main Room, Payer, status | `CHILD#<k>` |
-| `C#<c>#CHILD#<k>` | Everything that belongs to one child | `REL#<p>`, `CONSENT`, `ENR#<id>`, `OTP#<d>#<id>`, `CHG#<id>`, `CREDIT#<id>`, `UPDATE#<id>`, `CONV#<conv>`, plus `H#…` history |
+| `C#<c>#CHILD#<k>` | Everything that belongs to one child | `REL#<p>`, `CONSENT`, `ENR#<id>`, `OTP#<d>#<id>`, `CHG#<id>`, `CREDIT#<id>`, `UPDATE#<id>`, `TAGGED#<batch>#<photo>`, `CONV#<conv>`, plus `H#…` history |
 | `C#<c>#DAY#<d>` | The day's events | `SIO#<k>#<id>`, `TRANSFER#<k>#<id>`, `PRESENCE#<p>#<id>`, plus `H#…` history |
 | `C#<c>#LIVE` | Who's where right now, rebuilt from the day partitions | `CHILD#<k>`, `STAFF#<p>`, `ALERT#<room>` |
 | `C#<c>#ANNOUNCEMENTS` | Announcements | `ANN#<id>` |
@@ -74,6 +82,8 @@ Notes on the less obvious choices:
 - **Invoices live with the Payer, not the child.** A Records Restriction blocks a Guardian's reads under the child, and a restricted Guardian who's the Payer still reads their own partition.
 - **The invoice key is stable**, such as `<payer>#<period start>`. The billing run's put is conditional on it, and the key is also sent to Stripe as the idempotency key, so a retried run never charges twice.
 - **Photos are stored once and linked from each tagged child's feed.** The `UPDATE#<photo>` copy under each child carries the photo's status, so removal updates every copy in one transaction. The S3 key `centers/<c>/batches/<batch>/<photo>` leads straight to the record when an upload finishes.
+- **Withdrawing Photo Consent reaches photos already shared.** `TAGGED#<batch>#<photo>` under each tagged child finds every photo that child is in. On withdrawal, each photo that also tags another child is hidden from the other children's Guardians and shown to Staff as held back. A photo stays visible to the Guardians of the child who withdrew.
+- **A Staff member's Room** is the Room they're present in, or their assigned Room when they aren't present in any. It decides which children they see and which shared Conversations they can reply in.
 
 ### Partitions outside a Center
 
@@ -137,7 +147,7 @@ Each query has an ID, so tickets and code can refer to it. "Get" is a single-ite
 | D12 | A child's Attendance over a date range | #15 | Query GSI1 `C#<c>#CHILD#<k>#SIO`, `GSI1SK` between the dates |
 | D13 | The Attendance report for a date range | #41 | D9 for each day in the range |
 | D14 | The Sign-in/out log for a date range, with who recorded each entry and every correction | #41 | D9 for each day, including `H#` items |
-| D15 | Children still signed in at closing | #18 | D8, filtered to signed in |
+| D15 | Children still signed in, and Staff still present in a Room, at closing. Both are flagged to an Admin and left open | #18 | D8, filtered to signed in or present |
 | D16 | A Center's Rooms and Ratios | #11 | Query `C#<c>`, prefix `ROOM#` |
 | D17 | Rooms out of Ratio | #23 | D8 and D16, compared in code. `ALERT#<room>` records the last state, so only changes notify |
 | D18 | The printable daily roster for the Center or a Room | #24 | D1, then D4 for each child, then batch Get of the people |
@@ -159,6 +169,7 @@ Each query has an ID, so tickets and code can refer to it. "Get" is a single-ite
 | M11 | A batch's photos, with upload progress and any held back | #31 | Query `C#<c>#BATCH#<batch>` |
 | M12 | A Guardian's bundled notifications waiting to go | #28, #31 | Query `C#<c>#NOTIFY`, prefix `DIGEST#<p>#` |
 | M13 | Whether a notification was already sent, so retries don't send it twice | #16 | Conditional put `C#<c>#NOTIFY / SENT#<source id>#<p>` |
+| M14 | Every photo a child is tagged in, when their Photo Consent is withdrawn | #29 | Query `C#<c>#CHILD#<k>`, prefix `TAGGED#`, then M10 for each |
 
 The shared Conversation for a child has the ID `shared-<k>`, so it's never created twice.
 
@@ -190,7 +201,7 @@ The shared Conversation for a child has the ID `shared-<k>`, so it's never creat
 | C3 | The Owner's view of all Centers | #10 | A5, then C2, then C1 and a summary (D1, D8) for each Center in turn. Each Center's `orgId` is checked against the Organization |
 | C4 | The setup checklist | #40 | Get `C#<c> / SETUP` |
 | C5 | A CSV import's progress and row errors | #40 | Get `C#<c> / IMPORT#<id>` |
-| C6 | Records past the Center's retention period | #43 | Day partitions by date, and other partitions by ULID sort-key range |
+| C6 | Records past the Center's retention period (see [Retention](#retention)) | #43 | Day partitions by date, messages by ULID sort-key range, children by withdrawal date from D1, invoices and payments by invoice date |
 | C7 | Former Guardians still inside their photo download window | #43 | D4, where the `REL` head is a former Guardian with `accessUntil` in the future |
 | C8 | Everything a Center holds, for its export and deletion | #44 | Walk the Center's partitions, found from C1, A7, D1, M4 and the date range. Every Center partition must be reachable this way |
 
@@ -211,17 +222,16 @@ An Owner's view never reads across Centers in one query. It reads the Organizati
 ## Export to S3 for analytics
 
 - DynamoDB Streams sends every change to a Lambda, which writes to Kinesis Data Firehose. Firehose writes Parquet to a private bucket, partitioned as `center=<c>/type=<type>/date=<d>`, with a Glue table for Athena.
-- Only an allowlist of `type`s is exported. PIN hashes, sessions, invitations, dedupe markers and Assistant text are never exported.
+- Only an allowlist of `type`s is exported, and only IDs, types, times and statuses. Names, free text and photo keys are never exported, and neither are PIN hashes, sessions, invitations, dedupe markers or Assistant text. That keeps the export out of retention's reach. If the legal review requires it, the retention job will also delete the matching S3 objects.
 - The same stream later drives notifications that must go exactly once, such as Sign-in/out (with M13 as the guard).
 
-## Open questions
+## Retention
 
-To settle before approval:
+Each Center sets two retention periods:
 
-1. **Corrections across midnight.** A Sign-in/out stays in the day partition it was first saved in. Should a correction that moves it to another day be refused, so the entry is voided and re-entered?
-2. **Room presence left open.** A Staff member who never records leaving stays counted toward the Ratio, like a child who wasn't signed out. Should that be flagged at closing too?
-3. **"Their Room".** Do Staff see the children of an assigned Room, or of the Room they're currently present in?
-4. **Withdrawn Photo Consent.** Does it hide photos already shared, or only stop new ones?
-5. **Retention.** Does the retention period count from each record's date, or from when the child leaves? Does it also apply to the analytics export?
-6. **Center timezone.** Local dates and closing time need one. #8 doesn't mention it yet.
-7. **Scheduled jobs.** This design uses a schedule per Center, not one job that lists every Center. Is that acceptable?
+- **Records**, counted two ways:
+  - Day partitions (Sign-in/out, Room Transfers, presence) and Conversation messages count from each record's own date.
+  - Everything under a child counts from the date the child withdraws: profile, people, Photo Consent, feed, Enrollments and Charges.
+- **Billing**: invoices and payments count from the invoice date. The default is at least 7 years, pending the legal review.
+
+Assistant text is always deleted after 30 days, whatever the Center sets.
