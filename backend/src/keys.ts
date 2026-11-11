@@ -44,6 +44,8 @@ function centerKeys(centerId: string) {
     // C1: the Center's profile, a head with history.
     profile: key(partition, "CENTER"),
     profileHistory: (version: number) => key(partition, `H#CENTER#${String(version).padStart(6, "0")}`),
+    // Every version of the profile, oldest first.
+    profileVersions: { partition, sortPrefix: "H#CENTER#" } satisfies Prefix,
   };
 }
 

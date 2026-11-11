@@ -43,6 +43,32 @@ export function orgOwner(handler: Handler<Owner>): Route {
   });
 }
 
+export type CenterCaller = Person & { centerId: string; orgId: string; profile: Record<string, unknown> };
+
+// An Owner of the Organization the Center in the path belongs to. The handler
+// gets the Center's profile (C1), read consistently.
+export function centerOwner(handler: Handler<CenterCaller>): Route {
+  return signedUp(async (deps, request, { personId }) => {
+    const { centerId } = request.params;
+    if (!centerId) return centerNotFound();
+    const { Item: profile } = await deps.db.send(new GetCommand({
+      TableName: deps.tableName,
+      Key: keys.center(centerId).profile,
+      ConsistentRead: true,
+    }));
+    if (!profile) return centerNotFound();
+    // The Owner check uses the Organization the Center itself names.
+    const { orgId } = profile;
+    if (typeof orgId !== "string" || !orgId) return centerNotFound();
+    if (!await isOwner(deps, { orgId, personId })) return centerNotFound();
+    return handler(deps, request, { personId, centerId, orgId, profile });
+  });
+}
+
+export function centerNotFound() {
+  return json(404, { message: "Center not found" });
+}
+
 export function organizationNotFound() {
   return json(404, { message: "Organization not found" });
 }

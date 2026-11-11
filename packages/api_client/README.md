@@ -68,7 +68,10 @@ All URIs are relative to *http://localhost*
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
 *DefaultApi* | [**addCenter**](doc//DefaultApi.md#addcenter) | **POST** /organizations/{orgId}/centers | Add a Center to an Organization the signed-in person owns
+*DefaultApi* | [**changeCenter**](doc//DefaultApi.md#changecenter) | **PATCH** /centers/{centerId} | Change a Center's timezone, keeping its history
 *DefaultApi* | [**createOrganization**](doc//DefaultApi.md#createorganization) | **POST** /organizations | Create an Organization with its first Center, owned by the signed-in person
+*DefaultApi* | [**getCenter**](doc//DefaultApi.md#getcenter) | **GET** /centers/{centerId} | A Center's profile, for an Owner of its Organization
+*DefaultApi* | [**getCenterHistory**](doc//DefaultApi.md#getcenterhistory) | **GET** /centers/{centerId}/history | Every version of a Center's profile, oldest first
 *DefaultApi* | [**getHealth**](doc//DefaultApi.md#gethealth) | **GET** /health | Check that the API is up
 *DefaultApi* | [**getMe**](doc//DefaultApi.md#getme) | **GET** /me | The signed-in person
 *DefaultApi* | [**listCenters**](doc//DefaultApi.md#listcenters) | **GET** /organizations/{orgId}/centers | The Centers of an Organization the signed-in person owns
@@ -77,9 +80,12 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [CenterChange](doc//CenterChange.md)
+ - [CenterHistory](doc//CenterHistory.md)
  - [CenterList](doc//CenterList.md)
  - [CenterProfile](doc//CenterProfile.md)
  - [CenterSummary](doc//CenterSummary.md)
+ - [CenterVersion](doc//CenterVersion.md)
  - [Currency](doc//Currency.md)
  - [Error](doc//Error.md)
  - [Health](doc//Health.md)

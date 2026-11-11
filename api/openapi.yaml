@@ -137,6 +137,88 @@ paths:
           $ref: "#/components/responses/SignUpFirst"
         "404":
           $ref: "#/components/responses/OrganizationNotFound"
+  /centers/{centerId}:
+    parameters:
+      - name: centerId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getCenter
+      summary: A Center's profile, for an Owner of its Organization
+      responses:
+        "200":
+          description: The Center's current profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CenterProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/SignUpFirst"
+        "404":
+          $ref: "#/components/responses/CenterNotFound"
+    patch:
+      operationId: changeCenter
+      summary: Change a Center's timezone, keeping its history
+      description: >
+        Records already saved keep the dates they were saved with. A retry of
+        the same change gets the original result back. A change redone after
+        a 409 is a new change and needs a new `changeId`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CenterChange"
+      responses:
+        "200":
+          description: The Center's profile after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CenterProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/SignUpFirst"
+        "404":
+          $ref: "#/components/responses/CenterNotFound"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: >
+            The profile has changed since `expectedVersion`. Read it again and
+            redo the change against the current version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /centers/{centerId}/history:
+    parameters:
+      - name: centerId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getCenterHistory
+      summary: Every version of a Center's profile, oldest first
+      responses:
+        "200":
+          description: The profile's versions, with who saved each, when and why.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CenterHistory"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/SignUpFirst"
+        "404":
+          $ref: "#/components/responses/CenterNotFound"
 components:
   securitySchemes:
     cognito:
@@ -151,6 +233,15 @@ components:
       description: >
         The login hasn't signed up yet, or its token was issued before it did.
         Sign up with PUT /me, then refresh the login's tokens.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    CenterNotFound:
+      description: >
+        No such Center, or the signed-in person isn't an Owner of its
+        Organization. The two aren't told apart, so nobody learns which
+        Centers exist.
       content:
         application/json:
           schema:
@@ -289,6 +380,57 @@ components:
           description: The profile's version, which a change must name.
           type: integer
           minimum: 1
+    CenterChange:
+      type: object
+      additionalProperties: false
+      required: [changeId, expectedVersion, timezone]
+      properties:
+        changeId:
+          $ref: "#/components/schemas/DeviceId"
+        expectedVersion:
+          description: The profile's version the change was made against.
+          type: integer
+          minimum: 1
+        timezone:
+          description: The Center's new IANA timezone, such as America/Toronto.
+          type: string
+        reason:
+          description: Why the change was made, kept in the history.
+          type: string
+          maxLength: 500
+    CenterHistory:
+      type: object
+      additionalProperties: false
+      required: [versions]
+      properties:
+        versions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CenterVersion"
+    CenterVersion:
+      type: object
+      additionalProperties: false
+      required: [version, name, currency, timezone, recordedAt, recordedBy]
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+        currency:
+          $ref: "#/components/schemas/Currency"
+        timezone:
+          type: string
+        recordedAt:
+          description: When the server saved this version.
+          type: string
+          format: date-time
+        recordedBy:
+          description: The person ID of whoever saved this version.
+          type: string
+        reason:
+          description: Why this version was saved. The first is "Created".
+          type: string
     CenterList:
       type: object
       additionalProperties: false

@@ -30,9 +30,12 @@ part 'auth/http_bearer_auth.dart';
 
 part 'api/default_api.dart';
 
+part 'model/center_change.dart';
+part 'model/center_history.dart';
 part 'model/center_list.dart';
 part 'model/center_profile.dart';
 part 'model/center_summary.dart';
+part 'model/center_version.dart';
 part 'model/currency.dart';
 part 'model/error.dart';
 part 'model/health.dart';

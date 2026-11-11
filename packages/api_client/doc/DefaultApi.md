@@ -10,7 +10,10 @@ All URIs are relative to *http://localhost*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**addCenter**](DefaultApi.md#addcenter) | **POST** /organizations/{orgId}/centers | Add a Center to an Organization the signed-in person owns
+[**changeCenter**](DefaultApi.md#changecenter) | **PATCH** /centers/{centerId} | Change a Center's timezone, keeping its history
 [**createOrganization**](DefaultApi.md#createorganization) | **POST** /organizations | Create an Organization with its first Center, owned by the signed-in person
+[**getCenter**](DefaultApi.md#getcenter) | **GET** /centers/{centerId} | A Center's profile, for an Owner of its Organization
+[**getCenterHistory**](DefaultApi.md#getcenterhistory) | **GET** /centers/{centerId}/history | Every version of a Center's profile, oldest first
 [**getHealth**](DefaultApi.md#gethealth) | **GET** /health | Check that the API is up
 [**getMe**](DefaultApi.md#getme) | **GET** /me | The signed-in person
 [**listCenters**](DefaultApi.md#listcenters) | **GET** /organizations/{orgId}/centers | The Centers of an Organization the signed-in person owns
@@ -50,6 +53,57 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **orgId** | **String**|  | 
  **newCenter** | [**NewCenter**](NewCenter.md)|  | 
+
+### Return type
+
+[**CenterProfile**](CenterProfile.md)
+
+### Authorization
+
+[cognito](../README.md#cognito)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **changeCenter**
+> CenterProfile changeCenter(centerId, centerChange)
+
+Change a Center's timezone, keeping its history
+
+Records already saved keep the dates they were saved with. A retry of the same change gets the original result back. A change redone after a 409 is a new change and needs a new `changeId`. 
+
+### Example
+```dart
+import 'package:dc_api_client/api.dart';
+// TODO Configure HTTP Bearer authorization: cognito
+// Case 1. Use String Token
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken('YOUR_ACCESS_TOKEN');
+// Case 2. Use Function which generate token.
+// String yourTokenGeneratorFunction() { ... }
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken(yourTokenGeneratorFunction);
+
+final api_instance = DefaultApi();
+final centerId = centerId_example; // String | 
+final centerChange = CenterChange(); // CenterChange | 
+
+try {
+    final result = api_instance.changeCenter(centerId, centerChange);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->changeCenter: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **centerId** | **String**|  | 
+ **centerChange** | [**CenterChange**](CenterChange.md)|  | 
 
 ### Return type
 
@@ -109,6 +163,100 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getCenter**
+> CenterProfile getCenter(centerId)
+
+A Center's profile, for an Owner of its Organization
+
+### Example
+```dart
+import 'package:dc_api_client/api.dart';
+// TODO Configure HTTP Bearer authorization: cognito
+// Case 1. Use String Token
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken('YOUR_ACCESS_TOKEN');
+// Case 2. Use Function which generate token.
+// String yourTokenGeneratorFunction() { ... }
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken(yourTokenGeneratorFunction);
+
+final api_instance = DefaultApi();
+final centerId = centerId_example; // String | 
+
+try {
+    final result = api_instance.getCenter(centerId);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->getCenter: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **centerId** | **String**|  | 
+
+### Return type
+
+[**CenterProfile**](CenterProfile.md)
+
+### Authorization
+
+[cognito](../README.md#cognito)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getCenterHistory**
+> CenterHistory getCenterHistory(centerId)
+
+Every version of a Center's profile, oldest first
+
+### Example
+```dart
+import 'package:dc_api_client/api.dart';
+// TODO Configure HTTP Bearer authorization: cognito
+// Case 1. Use String Token
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken('YOUR_ACCESS_TOKEN');
+// Case 2. Use Function which generate token.
+// String yourTokenGeneratorFunction() { ... }
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken(yourTokenGeneratorFunction);
+
+final api_instance = DefaultApi();
+final centerId = centerId_example; // String | 
+
+try {
+    final result = api_instance.getCenterHistory(centerId);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->getCenterHistory: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **centerId** | **String**|  | 
+
+### Return type
+
+[**CenterHistory**](CenterHistory.md)
+
+### Authorization
+
+[cognito](../README.md#cognito)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
