@@ -6,7 +6,7 @@ export default defineConfig({
       {
         test: {
           name: "api",
-          include: ["test/api/**/*.test.ts"],
+          include: ["test/api/**/*.test.ts", "test/triggers/**/*.test.ts"],
           globalSetup: ["test/support/dynamodbLocal.ts"],
         },
       },
