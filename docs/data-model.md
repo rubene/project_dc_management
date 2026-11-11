@@ -31,7 +31,7 @@ Records that can be corrected use a **head and history** pair:
 - A change writes the new history item and updates the head in one transaction. The history put has the condition `attribute_not_exists`, and the head update has the condition `version = expected`, so two changes can't both win and nothing is ever overwritten.
 - This doubles the writes for these records, which is cheap at a Center's size and is the price of never losing an original. Don't optimize it away.
 
-This applies to Sign-in/out, Room Transfers, Room presence, a child's people (Guardian status, Authorized Pickup, Emergency Contact, Pickup Restriction, Records Restriction), Photo Consent and the Center's profile.
+This applies to Sign-in/out, Room Transfers, Room presence, a child's people (Guardian status, Authorized Pickup, Emergency Contact, Pickup Restriction, Records Restriction), a child's Payer, Photo Consent and the Center's profile.
 
 A record never moves partition, so a correction can't change a Sign-in/out's day. Instead an Admin **voids** it, which is a correction with a reason, and the replacement is entered as a new record. Staff can enter it as a late entry. A voided record:
 
@@ -76,7 +76,7 @@ The last column is how the Center's export and deletion find each partition (C8)
 | `C#<c>#PEOPLE` | Everyone the Center knows, with or without a login, their Roles there, a Staff member's assigned Room, and whether they've ever been a Payer | `PERSON#<p>`, `PIN#<p>`, `INVITE#<token hash>` | Fixed |
 | `C#<c>#DEVICES` | Registered devices, shared-tablet sessions | `DEVICE#<device>`, `SESSION#<session>` | Fixed |
 | `C#<c>#ROSTER` | One item per child: name, Main Room, Payer, status | `CHILD#<k>` | Fixed |
-| `C#<c>#CHILD#<k>` | Everything that belongs to one child | `REL#<p>`, `CONSENT`, `ENR#<id>`, `OTP#<d>#<id>`, `CHG#<id>`, `CREDIT#<id>`, `UPDATE#<id>`, `CONV#<conv>`, plus `H#…` history | `ROSTER` |
+| `C#<c>#CHILD#<k>` | Everything that belongs to one child | `REL#<p>`, `PAYER`, `CONSENT`, `ENR#<id>`, `OTP#<d>#<id>`, `CHG#<id>`, `CREDIT#<id>`, `UPDATE#<id>`, `CONV#<conv>`, plus `H#…` history | `ROSTER` |
 | `C#<c>#DAY#<d>` | The day's events | `SIO#<k>#<id>`, `TRANSFER#<k>#<id>`, `PRESENCE#<p>#<id>`, plus `H#…` history | Every date from the Center's `createdAt` to today |
 | `C#<c>#LIVE` | Who's where right now, a projection of the day partitions | `CHILD#<k>`, `STAFF#<p>`, `ALERT#<room>` | Fixed |
 | `C#<c>#ANNOUNCEMENTS` | Announcements | `ANN#<id>` | Fixed |
@@ -108,11 +108,18 @@ Notes on the less obvious choices:
 
 ### Billing through Stripe Billing (ADR 0011)
 
+- Every Payer is a person with an app login, so they can pay, set up autopay and download their history in the app.
 - Each Payer has a Stripe customer and one Stripe subscription in the Center's Stripe account, stored as `C#<c>#PAYER#<p> / CUSTOMER` and `SUBSCRIPTION`. `C#<c>#STRIPE / CUSTOMER#<stripe customer>` finds the Payer from a webhook.
-- Each Enrollment is one item on its Payer's Stripe subscription, and `ENR#<id>` stores the item's ID. The Tuition Plan's Stripe Price sets the amount. A price override uses a Price of its own, and a discount uses a Stripe coupon on the item. DC Management decides who gets a discount, such as a sibling discount on a second child.
+- Each Enrollment is one item on its Payer's Stripe subscription, and `ENR#<id>` stores the item's ID. The Tuition Plan's Stripe Price sets the amount. A price override uses a Price of its own, and a discount uses a Stripe coupon on the item. DC Management decides who gets a discount from the children, not from who pays, so siblings with different Payers still get a sibling discount.
 - Every Stripe subscription at a Center uses the Center's billing frequency, and starts on the Center's billing start date as a subscription schedule.
 - Stripe's proration is off. DC Management suggests a prorated amount, and the Admin's edited amount goes on the first invoice as an invoice item.
-- Changing a child's Payer moves their item to the new Payer's Stripe subscription.
+- **Changing the Payer.** Only an Admin changes a child's Payer, with a reason. `PAYER` under the child is a head with history, and the ROSTER item's `payerId` is updated in the same transaction. The change takes effect at the start of the next billing period, unless the Admin picks a date mid-period. Then:
+  1. The new Payer gets a Stripe customer if they don't have one. Their invoices are emailed until they opt in to autopay.
+  2. The child's item is removed from the old Payer's Stripe subscription and added to the new Payer's, with Stripe's proration off. Stripe bills each period in advance, so the old Payer's next invoice leaves the child out and the new Payer's includes them. A new Stripe subscription bills on the same date as the rest of the Center.
+  3. A mid-period date suggests a prorated split, which the Admin can edit, added to each Payer's next invoice as invoice items.
+  4. Charges and credits dated before the change stay with the old Payer. Those dated on or after it go to the new Payer.
+  5. Past invoices, paid or not, stay with the old Payer, along with their payment history. Neither Payer sees the other's invoices, payments or card details.
+  6. A Payer left with no children has their Stripe subscription end with the period. Their Stripe customer and copies of their history stay.
 - Autopay is the Stripe subscription's collection method: charged automatically if the Payer opted in, otherwise the invoice is emailed.
 - An approved Charge or subsidy credit becomes a Stripe invoice item on the Payer's customer, which the next invoice picks up. Its ID is sent as Stripe's idempotency key and in metadata, and the Stripe ID is saved on the record. A retry after Stripe's 24-hour idempotency window first looks for an invoice item with that metadata.
 - **Syncing.** A change to a Tuition Plan, Enrollment, discount, override or Payer is saved in DynamoDB first, marked `stripeSync: pending`, and then sent to Stripe. A sync that fails stays pending, and the stream reader retries it until it lands.
@@ -226,6 +233,7 @@ The shared Conversation for a child has the ID `shared-<k>`, so it's never creat
 | B12 | The Center a Stripe Connect account belongs to | #32 | Get `STRIPEACCOUNT#<account>` |
 | B13 | An Organization's subscription to DC Management and its trial | #39 | Get `ORG#<o> / SUBSCRIPTION` |
 | B14 | Active Enrollments across an Organization, to set its subscription's quantity before each billing date | #39 | C2, then D1 counted for each Center, saved as `ORG#<o> / USAGE#<billing date>` |
+| B15 | A child's Payer and the history of who paid when | #33 | Get `C#<c>#CHILD#<k> / PAYER`, and Query prefix `H#PAYER#` |
 
 ### Centers
 
