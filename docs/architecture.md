@@ -33,7 +33,7 @@ Everything runs in `us-west-2` ([ADR 0006](adr/0006-single-region-us-west-2.md))
 
 ## Data
 
-One main DynamoDB table with a generic `PK`/`SK` key holds the operational data. The key layout for each record is designed per ticket, once its queries are known. In staging and production the table is retained if the stack is deleted, with point-in-time recovery and deletion protection on. Dev has neither, since it only holds made-up data.
+One main DynamoDB table with a generic `PK`/`SK` key holds the operational data. [`data-model.md`](data-model.md) lists every v1 query and the key layout that serves them. Every Center record's key starts with the Center, corrected records keep append-only history, and records are ready for offline use (ADR 0004). Analytics will use a daily DynamoDB export to S3, read with Athena (#42), which needs point-in-time recovery in dev too. In staging and production the table is retained if the stack is deleted, with point-in-time recovery and deletion protection on. Dev has neither, since it only holds made-up data.
 
 ## Stages
 
