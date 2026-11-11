@@ -5,6 +5,8 @@ info:
   description: >
     The single contract between the DC Management backend and its apps.
     The apps' Dart API client is generated from this file.
+security:
+  - cognito: []
 paths:
   /health:
     get:
@@ -24,8 +26,306 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthUnavailable"
+  /me:
+    get:
+      operationId: getMe
+      summary: The signed-in person
+      responses:
+        "200":
+          description: The signed-in person.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/SignUpFirst"
+    put:
+      operationId: signUp
+      summary: Sign up the person behind the current login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignUp"
+      responses:
+        "201":
+          description: >
+            The person is signed up. Refresh the login's tokens so they carry
+            the person ID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Person"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /organizations:
+    post:
+      operationId: createOrganization
+      summary: Create an Organization with its first Center, owned by the signed-in person
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewOrganization"
+      responses:
+        "201":
+          description: The Organization and its first Center.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/SignUpFirst"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /organizations/{orgId}/centers:
+    parameters:
+      - name: orgId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: addCenter
+      summary: Add a Center to an Organization the signed-in person owns
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewCenter"
+      responses:
+        "201":
+          description: The new Center.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CenterProfile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/SignUpFirst"
+        "404":
+          $ref: "#/components/responses/OrganizationNotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    get:
+      operationId: listCenters
+      summary: The Centers of an Organization the signed-in person owns
+      responses:
+        "200":
+          description: The Organization's Centers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CenterList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/SignUpFirst"
+        "404":
+          $ref: "#/components/responses/OrganizationNotFound"
 components:
+  securitySchemes:
+    cognito:
+      description: >
+        A Cognito ID token, sent as a bearer token. API Gateway checks it and
+        passes its claims to the API.
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    SignUpFirst:
+      description: >
+        The login hasn't signed up yet, or its token was issued before it did.
+        Sign up with PUT /me, then refresh the login's tokens.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    OrganizationNotFound:
+      description: >
+        No such Organization, or the signed-in person isn't its Owner. The two
+        aren't told apart, so nobody learns which Organizations exist.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: >
+        A record with the request's ID already exists, created by a different
+        request. A retry of the same request gets the original result instead.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    BadRequest:
+      description: The request breaks a rule, which the message explains.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: The request has no valid login.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
   schemas:
+    Person:
+      type: object
+      additionalProperties: false
+      required: [personId, name, email]
+      properties:
+        personId:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+    Me:
+      description: The signed-in person, with the Organizations they belong to.
+      type: object
+      additionalProperties: false
+      required: [personId, name, email, organizations]
+      properties:
+        personId:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        organizations:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrganizationAccess"
+    OrganizationAccess:
+      type: object
+      additionalProperties: false
+      required: [id, name, roles]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [Owner]
+    NewOrganization:
+      type: object
+      additionalProperties: false
+      required: [id, name, center]
+      properties:
+        id:
+          $ref: "#/components/schemas/DeviceId"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        center:
+          $ref: "#/components/schemas/NewCenter"
+    NewCenter:
+      type: object
+      additionalProperties: false
+      required: [id, name, currency, timezone]
+      properties:
+        id:
+          $ref: "#/components/schemas/DeviceId"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        currency:
+          $ref: "#/components/schemas/Currency"
+        timezone:
+          description: The Center's IANA timezone, such as America/Vancouver.
+          type: string
+    Organization:
+      type: object
+      additionalProperties: false
+      required: [id, name, centers]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        centers:
+          type: array
+          items:
+            $ref: "#/components/schemas/CenterProfile"
+    CenterProfile:
+      type: object
+      additionalProperties: false
+      required: [id, orgId, name, currency, timezone, version]
+      properties:
+        id:
+          type: string
+        orgId:
+          type: string
+        name:
+          type: string
+        currency:
+          $ref: "#/components/schemas/Currency"
+        timezone:
+          description: The Center's IANA timezone, such as America/Vancouver.
+          type: string
+        version:
+          description: The profile's version, which a change must name.
+          type: integer
+          minimum: 1
+    CenterList:
+      type: object
+      additionalProperties: false
+      required: [centers]
+      properties:
+        centers:
+          type: array
+          items:
+            $ref: "#/components/schemas/CenterSummary"
+    CenterSummary:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    Currency:
+      description: The currency the Center bills in.
+      type: string
+      enum: [USD, CAD]
+    DeviceId:
+      description: >
+        A ULID created by the app, so a retried request can't create the
+        record twice. Its time must be within 7 days of the server's clock.
+      type: string
+    SignUp:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          description: The person's full name.
+          type: string
+          minLength: 1
+          maxLength: 200
     Health:
       type: object
       additionalProperties: false

@@ -23,6 +23,10 @@ Everything runs in `us-west-2` ([ADR 0006](adr/0006-single-region-us-west-2.md))
 - **One Lambda.** API Gateway sends every request to a single API Lambda, which routes by method and path (`backend/src/app.ts`). Adding an operation means adding a route and documenting it in the OpenAPI definition. Scheduled jobs, Step Functions steps and the Assistant will get their own functions that reuse the same app code ([ADR 0009](adr/0009-one-lambda-serves-the-whole-api.md)).
 - **Dependencies are passed in.** The app is built from its dependencies (`createApp({ clock, db, tableName })`). The Lambda passes the real ones; tests pass DynamoDB Local and fakes.
 - **Time comes from the `Clock`.** Business rules call `clock.now()`, never `new Date()`, so tests can set the time.
+- **Who's asking comes from the token's claims.** Cognito handles login only. API Gateway's Cognito authorizer checks the token and passes its claims, and the API reads them in `backend/src/auth.ts`. Each route says who may call it by wrapping its handler in `signedIn`, `signedUp` or `orgOwner` (`backend/src/access.ts`). A request without claims gets a 401. A login whose token has no `personId` claim hasn't signed up yet (`PUT /me`) and gets a 403 everywhere else. Roles live in DynamoDB, and access checks read them with strongly consistent reads. An Organization a person doesn't own answers 404, so nobody learns which ones exist. MFA is optional for everyone for now (#51).
+- **Keys come from one module.** Every main-table key is built in `backend/src/keys.ts`, which can't build a Center key without a Center ID (ADR 0010).
+- **Creates are safe to retry.** Records created in the apps carry a device-made ULID, checked in `backend/src/ids.ts`. A create stores a hash of its request and its result (`backend/src/idempotency.ts`). The same request again gets the original result, and a different request with the same ID gets a 409. Every item records who saved it, when, and through what (`backend/src/records.ts`).
+- **Errors are logged with the operation's name,** such as `POST /organizations`, in `backend/src/app.ts` (ADR 0009).
 
 ## The apps
 

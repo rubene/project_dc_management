@@ -41,14 +41,22 @@ Please follow the [installation procedure](#installation--usage) and then run th
 ```dart
 import 'package:dc_api_client/api.dart';
 
+// TODO Configure HTTP Bearer authorization: cognito
+// Case 1. Use String Token
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken('YOUR_ACCESS_TOKEN');
+// Case 2. Use Function which generate token.
+// String yourTokenGeneratorFunction() { ... }
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken(yourTokenGeneratorFunction);
 
 final api_instance = DefaultApi();
+final orgId = orgId_example; // String | 
+final newCenter = NewCenter(); // NewCenter | 
 
 try {
-    final result = api_instance.getHealth();
+    final result = api_instance.addCenter(orgId, newCenter);
     print(result);
 } catch (e) {
-    print('Exception when calling DefaultApi->getHealth: $e\n');
+    print('Exception when calling DefaultApi->addCenter: $e\n');
 }
 
 ```
@@ -59,19 +67,39 @@ All URIs are relative to *http://localhost*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+*DefaultApi* | [**addCenter**](doc//DefaultApi.md#addcenter) | **POST** /organizations/{orgId}/centers | Add a Center to an Organization the signed-in person owns
+*DefaultApi* | [**createOrganization**](doc//DefaultApi.md#createorganization) | **POST** /organizations | Create an Organization with its first Center, owned by the signed-in person
 *DefaultApi* | [**getHealth**](doc//DefaultApi.md#gethealth) | **GET** /health | Check that the API is up
+*DefaultApi* | [**getMe**](doc//DefaultApi.md#getme) | **GET** /me | The signed-in person
+*DefaultApi* | [**listCenters**](doc//DefaultApi.md#listcenters) | **GET** /organizations/{orgId}/centers | The Centers of an Organization the signed-in person owns
+*DefaultApi* | [**signUp**](doc//DefaultApi.md#signup) | **PUT** /me | Sign up the person behind the current login
 
 
 ## Documentation For Models
 
+ - [CenterList](doc//CenterList.md)
+ - [CenterProfile](doc//CenterProfile.md)
+ - [CenterSummary](doc//CenterSummary.md)
+ - [Currency](doc//Currency.md)
  - [Error](doc//Error.md)
  - [Health](doc//Health.md)
  - [HealthUnavailable](doc//HealthUnavailable.md)
+ - [Me](doc//Me.md)
+ - [NewCenter](doc//NewCenter.md)
+ - [NewOrganization](doc//NewOrganization.md)
+ - [Organization](doc//Organization.md)
+ - [OrganizationAccess](doc//OrganizationAccess.md)
+ - [Person](doc//Person.md)
+ - [SignUp](doc//SignUp.md)
 
 
 ## Documentation For Authorization
 
-Endpoints do not require authorization.
+
+Authentication schemes defined for the API:
+### cognito
+
+- **Type**: HTTP Bearer authentication
 
 
 ## Author

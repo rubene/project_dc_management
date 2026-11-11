@@ -18,7 +18,7 @@ Terms follow [`GLOSSARY.md`](../GLOSSARY.md). In keys, `<c>` is a Center ID, `<o
   | `LOGIN#<cognito sub>` | Login happens before a Center is known |
   | `ORG#<o>` | An Organization sits above its Centers |
   | `STRIPEACCOUNT#<account>` | Some Stripe Connect webhooks identify only the account |
-  | `CENTERS` | A list of every Center, for operations only. No request handler can reach it |
+  | `CENTERS` | A list of every Center, for operations only. Creating a Center adds it, and no request handler reads it |
 
 - Scheduled jobs run one Center at a time. Each Center gets its own EventBridge Scheduler schedules, in its own timezone, for its closing-time check and retention, so no job needs a query across Centers. Creating a Center, or changing its timezone or closing time, updates its schedules.
 
@@ -27,7 +27,7 @@ Terms follow [`GLOSSARY.md`](../GLOSSARY.md). In keys, `<c>` is a Center ID, `<o
 Records that can be corrected use a **head and history** pair:
 
 - The **head** holds the current version at the record's normal sort key, with a `version` number. Queries read heads.
-- Every version, including the first, is also written as an immutable **history** item at `H#<head sort key>#<version, zero-padded>`. It holds the full record, who changed it, when, and the reason.
+- Every version, including the first, is also written as an immutable **history** item at `H#<head sort key>#<version, zero-padded to 6 digits>`, such as `H#CENTER#000001`. It holds the full record, who changed it, when, and the reason.
 - A change writes the new history item and updates the head in one transaction. The history put has the condition `attribute_not_exists`, and the head update has the condition `version = expected`, so two changes can't both win and nothing is ever overwritten.
 - This doubles the writes for these records, which is cheap at a Center's size and is the price of never losing an original. Don't optimize it away.
 

@@ -16,6 +16,115 @@ class DefaultApi {
 
   final ApiClient apiClient;
 
+  /// Add a Center to an Organization the signed-in person owns
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] orgId (required):
+  ///
+  /// * [NewCenter] newCenter (required):
+  Future<Response> addCenterWithHttpInfo(String orgId, NewCenter newCenter,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/organizations/{orgId}/centers'
+      .replaceAll('{orgId}', orgId);
+
+    // ignore: prefer_final_locals
+    Object? postBody = newCenter;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Add a Center to an Organization the signed-in person owns
+  ///
+  /// Parameters:
+  ///
+  /// * [String] orgId (required):
+  ///
+  /// * [NewCenter] newCenter (required):
+  Future<CenterProfile?> addCenter(String orgId, NewCenter newCenter,) async {
+    final response = await addCenterWithHttpInfo(orgId, newCenter,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'CenterProfile',) as CenterProfile;
+    
+    }
+    return null;
+  }
+
+  /// Create an Organization with its first Center, owned by the signed-in person
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [NewOrganization] newOrganization (required):
+  Future<Response> createOrganizationWithHttpInfo(NewOrganization newOrganization,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/organizations';
+
+    // ignore: prefer_final_locals
+    Object? postBody = newOrganization;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Create an Organization with its first Center, owned by the signed-in person
+  ///
+  /// Parameters:
+  ///
+  /// * [NewOrganization] newOrganization (required):
+  Future<Organization?> createOrganization(NewOrganization newOrganization,) async {
+    final response = await createOrganizationWithHttpInfo(newOrganization,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Organization',) as Organization;
+    
+    }
+    return null;
+  }
+
   /// Check that the API is up
   ///
   /// Note: This method returns the HTTP [Response].
@@ -55,6 +164,155 @@ class DefaultApi {
     // FormatException when trying to decode an empty string.
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Health',) as Health;
+    
+    }
+    return null;
+  }
+
+  /// The signed-in person
+  ///
+  /// Note: This method returns the HTTP [Response].
+  Future<Response> getMeWithHttpInfo() async {
+    // ignore: prefer_const_declarations
+    final path = r'/me';
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// The signed-in person
+  Future<Me?> getMe() async {
+    final response = await getMeWithHttpInfo();
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Me',) as Me;
+    
+    }
+    return null;
+  }
+
+  /// The Centers of an Organization the signed-in person owns
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] orgId (required):
+  Future<Response> listCentersWithHttpInfo(String orgId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/organizations/{orgId}/centers'
+      .replaceAll('{orgId}', orgId);
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// The Centers of an Organization the signed-in person owns
+  ///
+  /// Parameters:
+  ///
+  /// * [String] orgId (required):
+  Future<CenterList?> listCenters(String orgId,) async {
+    final response = await listCentersWithHttpInfo(orgId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'CenterList',) as CenterList;
+    
+    }
+    return null;
+  }
+
+  /// Sign up the person behind the current login
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [SignUp] signUp (required):
+  Future<Response> signUpWithHttpInfo(SignUp signUp,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/me';
+
+    // ignore: prefer_final_locals
+    Object? postBody = signUp;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'PUT',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Sign up the person behind the current login
+  ///
+  /// Parameters:
+  ///
+  /// * [SignUp] signUp (required):
+  Future<Person?> signUp(SignUp signUp,) async {
+    final response = await signUpWithHttpInfo(signUp,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Person',) as Person;
     
     }
     return null;
