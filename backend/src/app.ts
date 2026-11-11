@@ -1,5 +1,6 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { changeCenter, getCenter, getCenterHistory } from "./centers.js";
 import type { Clock } from "./clock.js";
 import { getHealth } from "./health.js";
 import { json } from "./http.js";
@@ -25,6 +26,9 @@ const routes: Record<string, Route> = {
   "POST /organizations": createOrganization,
   "POST /organizations/{orgId}/centers": addCenter,
   "GET /organizations/{orgId}/centers": listCenters,
+  "GET /centers/{centerId}": getCenter,
+  "PATCH /centers/{centerId}": changeCenter,
+  "GET /centers/{centerId}/history": getCenterHistory,
 };
 
 const matchers = Object.entries(routes).map(([operation, route]) => {

@@ -2,25 +2,15 @@ import { describe, expect, test } from "vitest";
 import { testApi } from "../support/api.js";
 import { fixedClock } from "../support/fakeClock.js";
 import { deviceId } from "../support/ids.js";
-import { signedUp, type Login } from "../support/logins.js";
+import { signedUp } from "../support/logins.js";
+import { ownerWithOrganization as ownerWithOrganizationAt } from "../support/organizations.js";
 
 const clock = fixedClock("2026-03-14T15:09:26.000Z");
 const api = testApi({ clock });
+const ownerWithOrganization = () => ownerWithOrganizationAt(api, clock);
 
 function newCenter(center: Record<string, unknown> = {}) {
   return { id: deviceId(clock), name: "Little Oaks Uptown", currency: "USD", timezone: "America/Los_Angeles", ...center };
-}
-
-async function ownerWithOrganization(): Promise<{ owner: Login; orgId: string; firstCenterId: string }> {
-  const owner = await signedUp(api);
-  const orgId = deviceId(clock);
-  const firstCenterId = deviceId(clock);
-  await api.as(owner).post("/organizations", {
-    id: orgId,
-    name: "Little Oaks",
-    center: { id: firstCenterId, name: "Little Oaks Downtown", currency: "CAD", timezone: "America/Vancouver" },
-  });
-  return { owner, orgId, firstCenterId };
 }
 
 describe("POST /organizations/{orgId}/centers", () => {

@@ -33,6 +33,7 @@ export function testApi(options: Options = {}, login?: Login) {
     get: (path: string) => request("GET", path),
     put: (path: string, body: unknown) => request("PUT", path, body),
     post: (path: string, body: unknown) => request("POST", path, body),
+    patch: (path: string, body: unknown) => request("PATCH", path, body),
     as: (login: Login) => testApi(options, login),
   };
 }

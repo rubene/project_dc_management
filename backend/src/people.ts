@@ -2,7 +2,7 @@ import { GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { ulid } from "ulid";
 import { signedIn, signedUp } from "./access.js";
 import { json, parseBody } from "./http.js";
-import { createOnce, createOnly } from "./idempotency.js";
+import { writeOnce, createOnly } from "./idempotency.js";
 import { keys, queryByPrefix } from "./keys.js";
 import { recordedBy } from "./records.js";
 import { cleanName, isObject, unknownField } from "./validation.js";
@@ -21,7 +21,7 @@ export const signUp = signedIn(async ({ clock, db, tableName }, { event }, login
   const person = { personId, name, email: login.email };
   const recorded = recordedBy(personId, now);
 
-  const saved = await createOnce(db, [
+  const saved = await writeOnce(db, [
     // Holds the sign-up's result, so a retry gets it back from the failed
     // condition without a second read.
     createOnly(tableName, { ...keys.login(login.sub), type: "Login", ...person, ...recorded }, { returnExisting: true }),
@@ -32,7 +32,7 @@ export const signUp = signedIn(async ({ clock, db, tableName }, { event }, login
     const { original } = saved;
     return json(201, { personId: original.personId, name: original.name, email: original.email });
   }
-  if (saved.outcome !== "created") throw new Error(`Sign-up couldn't be saved: ${saved.outcome}`);
+  if (saved.outcome !== "written") throw new Error(`Sign-up couldn't be saved: ${saved.outcome}`);
   return json(201, person);
 });
 

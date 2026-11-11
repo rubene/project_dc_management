@@ -182,12 +182,18 @@ class ApiClient {
           return valueString == 'true' || valueString == '1';
         case 'DateTime':
           return value is DateTime ? value : DateTime.tryParse(value);
+        case 'CenterChange':
+          return CenterChange.fromJson(value);
+        case 'CenterHistory':
+          return CenterHistory.fromJson(value);
         case 'CenterList':
           return CenterList.fromJson(value);
         case 'CenterProfile':
           return CenterProfile.fromJson(value);
         case 'CenterSummary':
           return CenterSummary.fromJson(value);
+        case 'CenterVersion':
+          return CenterVersion.fromJson(value);
         case 'Currency':
           return CurrencyTypeTransformer().decode(value);
         case 'Error':

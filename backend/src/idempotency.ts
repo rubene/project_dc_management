@@ -4,9 +4,11 @@ import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { TransactWriteCommand, type DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { itemExists, itemIsNew } from "./keys.js";
 
-// Creates are conditional puts that keep a hash of the request, so a retry
-// gets the original result back and a different request with the same ID is
-// a conflict (docs/data-model.md, "Duplicate-safe retries").
+// Creates and changes are conditional transactions whose first item keeps a
+// hash of the request: a new record, or the history item of a changed one.
+// A retry gets the original result back from that item, and a different
+// request that collides with it is a conflict (docs/data-model.md,
+// "Duplicate-safe retries").
 
 export function requestHash(personId: string, request: unknown): string {
   return createHash("sha256").update(JSON.stringify([personId, request])).digest("base64url");
@@ -33,29 +35,44 @@ export function mustExist(tableName: string, key: Item) {
   return { ConditionCheck: { TableName: tableName, Key: key, ...itemExists } };
 }
 
-type Write = ReturnType<typeof createOnly> | ReturnType<typeof mustExist>;
+// A transaction put that replaces a head, and fails unless the head is still
+// at the version the change expects, so two changes can't both win.
+export function replaceIfVersion(tableName: string, item: Item, expectedVersion: number) {
+  return {
+    Put: {
+      TableName: tableName,
+      Item: item,
+      ConditionExpression: "#version = :expected",
+      ExpressionAttributeNames: { "#version": "version" },
+      ExpressionAttributeValues: { ":expected": expectedVersion },
+    },
+  };
+}
 
-export type CreateOutcome =
-  | { outcome: "created" }
+type Write = ReturnType<typeof createOnly> | ReturnType<typeof mustExist> | ReturnType<typeof replaceIfVersion>;
+
+export type WriteOutcome =
+  | { outcome: "written" }
   // The same request was already saved; `original` is its first item.
   | { outcome: "repeated"; original: Item }
-  // Something with the same ID was created by a different request.
+  // A different request got there first: an item with the same ID already
+  // exists, or the head has moved past the version a change expected.
   | { outcome: "conflict" }
   // A `mustExist` check failed.
   | { outcome: "refused" };
 
-// Writes a create transaction. Its first write is a `createOnly` with
-// `returnExisting`, and `isSameRequest` tells from that item whether the
-// earlier write came from this same request.
-export async function createOnce(
+// Writes a create or change transaction once. Its first write is a
+// `createOnly` with `returnExisting`, and `isSameRequest` tells from that item
+// whether the earlier write came from this same request.
+export async function writeOnce(
   db: DynamoDBDocumentClient,
   writes: Write[],
   isSameRequest: (original: Item) => boolean,
-): Promise<CreateOutcome> {
+): Promise<WriteOutcome> {
   for (let attempt = 1; ; attempt++) {
     try {
       await db.send(new TransactWriteCommand({ TransactItems: writes }));
-      return { outcome: "created" };
+      return { outcome: "written" };
     } catch (error) {
       if (!(error instanceof TransactionCanceledException)) throw error;
       const reasons = error.CancellationReasons ?? [];

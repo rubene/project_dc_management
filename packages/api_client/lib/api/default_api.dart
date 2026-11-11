@@ -73,6 +73,67 @@ class DefaultApi {
     return null;
   }
 
+  /// Change a Center's timezone, keeping its history
+  ///
+  /// Records already saved keep the dates they were saved with. A retry of the same change gets the original result back. A change redone after a 409 is a new change and needs a new `changeId`. 
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  ///
+  /// * [CenterChange] centerChange (required):
+  Future<Response> changeCenterWithHttpInfo(String centerId, CenterChange centerChange,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/centers/{centerId}'
+      .replaceAll('{centerId}', centerId);
+
+    // ignore: prefer_final_locals
+    Object? postBody = centerChange;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'PATCH',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Change a Center's timezone, keeping its history
+  ///
+  /// Records already saved keep the dates they were saved with. A retry of the same change gets the original result back. A change redone after a 409 is a new change and needs a new `changeId`. 
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  ///
+  /// * [CenterChange] centerChange (required):
+  Future<CenterProfile?> changeCenter(String centerId, CenterChange centerChange,) async {
+    final response = await changeCenterWithHttpInfo(centerId, centerChange,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'CenterProfile',) as CenterProfile;
+    
+    }
+    return null;
+  }
+
   /// Create an Organization with its first Center, owned by the signed-in person
   ///
   /// Note: This method returns the HTTP [Response].
@@ -120,6 +181,112 @@ class DefaultApi {
     // FormatException when trying to decode an empty string.
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Organization',) as Organization;
+    
+    }
+    return null;
+  }
+
+  /// A Center's profile, for an Owner of its Organization
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  Future<Response> getCenterWithHttpInfo(String centerId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/centers/{centerId}'
+      .replaceAll('{centerId}', centerId);
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// A Center's profile, for an Owner of its Organization
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  Future<CenterProfile?> getCenter(String centerId,) async {
+    final response = await getCenterWithHttpInfo(centerId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'CenterProfile',) as CenterProfile;
+    
+    }
+    return null;
+  }
+
+  /// Every version of a Center's profile, oldest first
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  Future<Response> getCenterHistoryWithHttpInfo(String centerId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/centers/{centerId}/history'
+      .replaceAll('{centerId}', centerId);
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Every version of a Center's profile, oldest first
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  Future<CenterHistory?> getCenterHistory(String centerId,) async {
+    final response = await getCenterHistoryWithHttpInfo(centerId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'CenterHistory',) as CenterHistory;
     
     }
     return null;
