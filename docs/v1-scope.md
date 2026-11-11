@@ -125,10 +125,10 @@ Payroll and time cards aren't planned.
 - **Marketing site:** a separate Astro static site on S3 and CloudFront.
 - **Backend:** TypeScript on Lambda and Step Functions, with EventBridge where needed.
 - **API:** REST on API Gateway, with an OpenAPI definition that generates the Flutter client. V1 uses push notifications and polling, not WebSockets.
-- **Data:** one main DynamoDB table with the Center in each record's key, access checks on every request, and append-only history for corrected records. List every v1 query before designing the schema. Analytics data is exported to S3 for Athena.
+- **Data:** one main DynamoDB table with the Center in each record's key, access checks on every request, and append-only history for corrected records. List every v1 query before designing the schema. A daily DynamoDB export to S3 is kept for 14 days and queried with Athena.
 - **Login:** Cognito handles login only, and Roles live in DynamoDB. Owners and Admins need MFA.
 - **Files:** all S3 buckets block public access. People view files only through CloudFront, using short-lived signed links for child photos. Uploads use short-lived signed links, and internal buckets are available only to backend services.
-- **Stripe:** DC Management holds the prices and rules, and creates invoices in each Center's Stripe account. Stripe handles collection, receipts and retries. Billing runs must never charge a family twice.
+- **Stripe:** DC Management holds the prices and rules, and keeps one Stripe subscription per Payer in each Center's Stripe account in step with them (ADR 0011). Stripe Billing creates the invoices and handles collection, autopay, receipts and retries. A retried change must never charge a family twice.
 - **Infrastructure:** CDK in TypeScript, in `us-west-2`. Only a dev account exists until v1 is code complete, but the CDK must support staging and production.
 - **Test data:** the dev account only ever holds made-up data, and any pilot with a real Center waits for production.
 - **Assistant:**
