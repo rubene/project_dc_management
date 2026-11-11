@@ -182,12 +182,34 @@ class ApiClient {
           return valueString == 'true' || valueString == '1';
         case 'DateTime':
           return value is DateTime ? value : DateTime.tryParse(value);
+        case 'CenterList':
+          return CenterList.fromJson(value);
+        case 'CenterProfile':
+          return CenterProfile.fromJson(value);
+        case 'CenterSummary':
+          return CenterSummary.fromJson(value);
+        case 'Currency':
+          return CurrencyTypeTransformer().decode(value);
         case 'Error':
           return Error.fromJson(value);
         case 'Health':
           return Health.fromJson(value);
         case 'HealthUnavailable':
           return HealthUnavailable.fromJson(value);
+        case 'Me':
+          return Me.fromJson(value);
+        case 'NewCenter':
+          return NewCenter.fromJson(value);
+        case 'NewOrganization':
+          return NewOrganization.fromJson(value);
+        case 'Organization':
+          return Organization.fromJson(value);
+        case 'OrganizationAccess':
+          return OrganizationAccess.fromJson(value);
+        case 'Person':
+          return Person.fromJson(value);
+        case 'SignUp':
+          return SignUp.fromJson(value);
         default:
           dynamic match;
           if (value is List && (match = _regList.firstMatch(targetType)?.group(1)) != null) {

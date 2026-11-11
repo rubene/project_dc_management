@@ -7,11 +7,13 @@ import { parse } from "yaml";
 // response a test receives must match it.
 const definitionPath = new URL("../../../api/openapi.yaml", import.meta.url);
 
+type Response = { $ref?: string; content?: Record<string, { schema: object }> };
+
 type Definition = {
   paths: Record<string, Record<string, {
-    responses: Record<string, { content?: Record<string, { schema: object }> }>;
+    responses: Record<string, Response>;
   }>>;
-  components?: { schemas?: Record<string, object> };
+  components?: { schemas?: Record<string, object>; responses?: Record<string, Response> };
 };
 
 const definition = parse(readFileSync(definitionPath, "utf8")) as Definition;
@@ -27,7 +29,7 @@ ajv.addSchema(
 export function assertMatchesDefinition(
   method: string, path: string, status: number, body: unknown,
 ) {
-  const operation = definition.paths[path]?.[method.toLowerCase()];
+  const operation = definition.paths[documentedPath(path)]?.[method.toLowerCase()];
   if (!operation) {
     if (status !== 404) {
       throw new Error(`${method} ${path} returned ${status}, but it isn't in the OpenAPI definition`);
@@ -35,13 +37,31 @@ export function assertMatchesDefinition(
     return assertMatchesSchema(`${method} ${path} ${status}`, { $ref: "#/components/schemas/Error" }, body);
   }
 
-  const response = operation.responses[String(status)];
+  const response = resolveResponse(operation.responses[String(status)]);
   if (!response) {
     throw new Error(`${method} ${path} returned ${status}, which the OpenAPI definition doesn't document`);
   }
 
   const schema = response.content?.["application/json"]?.schema;
   if (schema) assertMatchesSchema(`${method} ${path} ${status}`, schema, body);
+}
+
+// The definition's path for a concrete one, such as
+// "/organizations/{orgId}/centers" for "/organizations/01J…/centers".
+function documentedPath(path: string): string {
+  if (definition.paths[path]) return path;
+  const template = Object.keys(definition.paths).find((candidate) =>
+    new RegExp(`^${candidate.replace(/\{\w+\}/g, "[^/]+")}$`).test(path));
+  return template ?? path;
+}
+
+// Shared responses are written as "#/components/responses/X" refs.
+function resolveResponse(response: Response | undefined): Response | undefined {
+  const name = response?.$ref?.match(/^#\/components\/responses\/(.+)$/)?.[1];
+  if (!name) return response;
+  const shared = definition.components?.responses?.[name];
+  if (!shared) throw new Error(`The OpenAPI definition has no shared response ${name}`);
+  return shared;
 }
 
 function assertMatchesSchema(label: string, schema: object, body: unknown) {

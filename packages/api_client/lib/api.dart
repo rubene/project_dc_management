@@ -30,9 +30,20 @@ part 'auth/http_bearer_auth.dart';
 
 part 'api/default_api.dart';
 
+part 'model/center_list.dart';
+part 'model/center_profile.dart';
+part 'model/center_summary.dart';
+part 'model/currency.dart';
 part 'model/error.dart';
 part 'model/health.dart';
 part 'model/health_unavailable.dart';
+part 'model/me.dart';
+part 'model/new_center.dart';
+part 'model/new_organization.dart';
+part 'model/organization.dart';
+part 'model/organization_access.dart';
+part 'model/person.dart';
+part 'model/sign_up.dart';
 
 
 /// An [ApiClient] instance that uses the default values obtained from
