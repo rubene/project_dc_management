@@ -48,6 +48,16 @@ cd apps/mobile
 flutter run --dart-define=API_URL=https://<api-id>.execute-api.us-west-2.amazonaws.com/v1/
 ```
 
+Run the Admin web app in Chrome against a deployed stage, using `ApiUrl`, `UserPoolId` and `AppClientId` from `backend/cdk-outputs.dev.json` (deployed, it reads them from `/config.json` instead):
+
+```sh
+cd apps/admin_web
+flutter run -d chrome --dart-define=API_URL=https://<api-id>.execute-api.us-west-2.amazonaws.com/v1/ \
+  --dart-define=USER_POOL_ID=<UserPoolId> --dart-define=APP_CLIENT_ID=<AppClientId>
+```
+
+Calling API Gateway directly from `localhost` needs CORS, which the API doesn't have, so for now sign-up and the Centers screens only work on the deployed app.
+
 After changing `api/openapi.yaml`, regenerate the Dart client and commit the result (needs Docker):
 
 ```sh

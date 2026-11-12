@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { stage, stageUrl } from "../support/deployedStage.js";
+import { stage, stageOutput, stageUrl } from "../support/deployedStage.js";
 import { assertMatchesDefinition } from "../support/openapi.js";
 
 // Confirms the Admin web app is served through CloudFront alone, and that the
@@ -19,6 +19,18 @@ test(`the deployed ${stage} Admin web app's address reaches the API`, async () =
 
   assertMatchesDefinition("GET", "/health", response.status, body);
   expect(response.status).toBe(200);
+});
+
+// The app reads it at start-up to sign in to the right user pool.
+test(`the deployed ${stage} Admin web app is told the stage's user pool`, async () => {
+  const response = await fetch(new URL("config.json", stageUrl("AdminWebUrl")));
+
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({
+    region: "us-west-2",
+    userPoolId: stageOutput("UserPoolId"),
+    appClientId: stageOutput("AppClientId"),
+  });
 });
 
 test(`the deployed ${stage} Admin web bucket refuses direct requests`, async () => {

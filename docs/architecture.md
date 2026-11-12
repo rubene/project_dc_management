@@ -40,6 +40,10 @@ Everything runs in `us-west-2` ([ADR 0006](adr/0006-single-region-us-west-2.md))
 
 - **Mobile** (`apps/mobile`): one Flutter app for Staff and Guardians. It calls API Gateway directly, at the URL given with `--dart-define=API_URL=…` at build time.
 - **Admin web** (`apps/admin_web`): a Flutter web app. Its build is uploaded on deploy to a private S3 bucket that blocks all public access. Only the stage's CloudFront distribution can read it, through Origin Access Control.
+  - **Signing in.** The screens use an `Auth` interface (`lib/auth/auth.dart`). `AmplifyAuth` implements it with Amplify, signing in to the stage's user pool with SRP, and the screen tests use a fake. `IdTokenAuthentication` sends the current ID token with every API request.
+  - **One build for every stage.** Each deploy writes the stage's user pool to `/config.json` next to the app, which reads it at start-up. A local build can pass `--dart-define=USER_POOL_ID=… --dart-define=APP_CLIENT_ID=…` instead.
+  - **New Owners** create an account, confirm their email, may add an authenticator app (optional for everyone), give their name (`PUT /me`, then fresh tokens), and set up their Organization and first Center, with the browser's timezone filled in. They can add more Centers.
+  - IDs for new records are ULIDs made in the browser, once per form, so a retried request sends the same ID.
 - **The API on the same address.** The Admin web distribution also passes `/v1/*` to API Gateway, uncached. The web app calls its own origin, so the API needs no CORS and no list of allowed origins.
 - **Shared code.** Both apps use the generated client and the shared UI library in `packages/ui`, which holds the theme and shared screens.
 
@@ -59,7 +63,7 @@ Each stage's settings live in `backend/infra/stage.ts`. The account comes from t
 | `infra` | `npm test` | Each stage can be built from settings alone, in `us-west-2` |
 | `infra` (Admin web) | `npm test` | The Admin web bucket is private and readable only by CloudFront, and `/v1/*` goes to the API, uncached |
 | `infra` (logins) | `npm test` | The user pool signs in by email with optional authenticator-app MFA, the pre-token trigger runs as version 2 and can only read the table, and every API method except `GET /health` needs a Cognito login |
-| `deployed` | `npm run check:deployed` | A deployed stage answers `/health` and can read its table, and refuses requests without a valid token. The Admin web app is served through CloudFront, its address reaches the API, and the bucket refuses direct requests |
+| `deployed` | `npm run check:deployed` | A deployed stage answers `/health` and can read its table, and refuses requests without a valid token. The Admin web app is served through CloudFront, its address reaches the API, it's told the stage's user pool, and the bucket refuses direct requests |
 | App screens | `flutter test` in each app | Each app's screens, with the real generated client talking to a fake API |
 
 Fakes for outside systems are added only when a ticket first needs them. So far there's one: the clock (`backend/test/support/fakeClock.ts`).
