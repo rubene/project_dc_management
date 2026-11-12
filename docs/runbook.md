@@ -26,9 +26,19 @@ ADMIN_WEB_BUCKET_URL=https://<bucket>.s3.us-west-2.amazonaws.com/ \
 npm run check:deployed
 ```
 
-You can also call it by hand: `curl <ApiUrl>health`. A healthy API returns `{"status":"ok","database":"ok","time":"…"}`.
+You can also call it by hand: `curl <ApiUrl>health`. A healthy API returns `{"status":"ok","database":"ok","time":"…"}`. Every other path needs a login, so `curl <ApiUrl>me` returns 401 `{"message":"Unauthorized"}`.
+
+## Logins
+
+Each stage has a Cognito user pool, `dc-<stage>-logins`. Its ID and the apps' client ID are the `UserPoolId` and `AppClientId` outputs. People sign up with their email, and MFA with an authenticator app is optional (#51). Roles are never in Cognito: they're in DynamoDB.
+
+The apps' client signs in only with SRP, which the Admin web app does through Amplify. A request sends the ID token as `Authorization: Bearer <token>`. After signing up with `PUT /me`, the app gets new tokens, because only tokens issued after sign-up carry the `personId` claim.
 
 ## Common problems
+
+### Every request gets 403 "Sign up first", even after signing up
+
+The token was issued before `PUT /me`. Get a new one (sign in again, or refresh). If new tokens still lack `personId`, check the `/dc/<stage>/pre-token-generation` logs: a database error there issues tokens without the claim rather than blocking the login. The trigger must be connected as version 2 (the infra test checks it).
 
 ### `npm test` fails with "Cannot connect to the Docker daemon"
 

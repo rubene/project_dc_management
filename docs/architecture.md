@@ -10,10 +10,17 @@ flowchart LR
   cf -->|"/v1/*"| apigw
   check["Deployed check<br/>(after each deploy)"] --> apigw
   check --> cf
+  mobile -->|sign in| cognito["Cognito<br/>user pool"]
+  browser -->|sign in| cognito
+  cognito -->|issuing tokens| trigger["Pre-token trigger<br/>Lambda"]
+  trigger -->|reads LOGIN#sub| table
+  apigw -->|checks the ID token| cognito
   apigw -->|every path| fn["API Lambda<br/>Node 24, arm64"]
   fn --> table[("Main table<br/>DynamoDB")]
   fn --> logs["CloudWatch Logs"]
 ```
+
+Every API path needs a Cognito ID token, checked by API Gateway, except `GET /health`.
 
 Everything runs in `us-west-2` ([ADR 0006](adr/0006-single-region-us-west-2.md)), with one CloudFormation stack per stage: `dc-dev`, `dc-staging`, `dc-prod`.
 
@@ -51,7 +58,8 @@ Each stage's settings live in `backend/infra/stage.ts`. The account comes from t
 | `api` | `npm test` | The API through the real handler, in-process, against DynamoDB Local in Docker. Responses are checked against OpenAPI. Cognito's triggers are called the way Cognito calls them (`test/triggers`). |
 | `infra` | `npm test` | Each stage can be built from settings alone, in `us-west-2` |
 | `infra` (Admin web) | `npm test` | The Admin web bucket is private and readable only by CloudFront, and `/v1/*` goes to the API, uncached |
-| `deployed` | `npm run check:deployed` | A deployed stage answers `/health` and can read its table. The Admin web app is served through CloudFront, its address reaches the API, and the bucket refuses direct requests |
+| `infra` (logins) | `npm test` | The user pool signs in by email with optional authenticator-app MFA, the pre-token trigger runs as version 2 and can only read the table, and every API method except `GET /health` needs a Cognito login |
+| `deployed` | `npm run check:deployed` | A deployed stage answers `/health` and can read its table, and refuses requests without a valid token. The Admin web app is served through CloudFront, its address reaches the API, and the bucket refuses direct requests |
 | App screens | `flutter test` in each app | Each app's screens, with the real generated client talking to a fake API |
 
 Fakes for outside systems are added only when a ticket first needs them. So far there's one: the clock (`backend/test/support/fakeClock.ts`).

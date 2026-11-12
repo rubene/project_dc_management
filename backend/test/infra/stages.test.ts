@@ -1,27 +1,15 @@
-import { fileURLToPath } from "node:url";
-import { App } from "aws-cdk-lib";
-import { Match, Template } from "aws-cdk-lib/assertions";
+import { Match } from "aws-cdk-lib/assertions";
 import { CachePolicy } from "aws-cdk-lib/aws-cloudfront";
 import { describe, expect, test } from "vitest";
-import { createStageStack, parseStage, stageNames, type Stage } from "../../infra/stage.js";
+import { parseStage, stageNames } from "../../infra/stage.js";
+import { synth } from "../support/synth.js";
 
-// Building a stage needs no AWS access. Bundling is skipped, and a stand-in
-// Admin web build is used, because these tests only check what each stage
-// would deploy, not the Lambda code or the app.
 type PolicyStatement = {
   Effect: string;
   Principal: unknown;
   Action: string | string[];
   Condition?: { StringEquals?: Record<string, unknown> };
 };
-
-const adminWebDir = fileURLToPath(new URL("../support/adminWebBuild", import.meta.url));
-
-function synth(stage: Stage) {
-  const app = new App({ context: { "aws:cdk:bundling-stacks": [] } });
-  const stack = createStageStack(app, stage, { account: "111111111111", adminWebDir });
-  return { stack, template: Template.fromStack(stack) };
-}
 
 describe.each(stageNames)("the %s stage", (stage) => {
   test("is created in us-west-2 from settings alone", () => {
