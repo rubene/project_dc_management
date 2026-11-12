@@ -30,6 +30,9 @@ part 'auth/http_bearer_auth.dart';
 
 part 'api/default_api.dart';
 
+part 'model/admin.dart';
+part 'model/admin_list.dart';
+part 'model/center_access.dart';
 part 'model/center_change.dart';
 part 'model/center_history.dart';
 part 'model/center_list.dart';
@@ -40,8 +43,12 @@ part 'model/currency.dart';
 part 'model/error.dart';
 part 'model/health.dart';
 part 'model/health_unavailable.dart';
+part 'model/invitable_role.dart';
+part 'model/invitation.dart';
+part 'model/invitation_acceptance.dart';
 part 'model/me.dart';
 part 'model/new_center.dart';
+part 'model/new_invitation.dart';
 part 'model/new_organization.dart';
 part 'model/organization.dart';
 part 'model/organization_access.dart';

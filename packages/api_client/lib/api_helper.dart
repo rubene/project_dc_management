@@ -58,6 +58,9 @@ String parameterToString(dynamic value) {
   if (value is Currency) {
     return CurrencyTypeTransformer().encode(value).toString();
   }
+  if (value is InvitableRole) {
+    return InvitableRoleTypeTransformer().encode(value).toString();
+  }
   return value.toString();
 }
 

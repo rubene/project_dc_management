@@ -1,21 +1,22 @@
 import { QueryCommand } from "@aws-sdk/lib-dynamodb";
-import { centerNotFound, centerOwner } from "./access.js";
+import { centerManager, centerNotFound, stillAllowed } from "./access.js";
 import { centerProfile } from "./centerProfile.js";
 import { json, parseBody } from "./http.js";
-import { writeOnce, createOnly, mustExist, replaceIfVersion, requestHash } from "./idempotency.js";
+import { writeOnce, createOnly, replaceIfVersion, requestHash } from "./idempotency.js";
 import { keys, queryByPrefix } from "./keys.js";
 import { recordedBy } from "./records.js";
 import { deviceIdProblem, isDeviceId } from "./ids.js";
 import { ianaTimezone, isObject, unknownField, type Parsed } from "./validation.js";
 
 // C1: a Center's profile.
-export const getCenter = centerOwner(async (_deps, _request, { profile }) => json(200, centerProfile(profile)));
+export const getCenter = centerManager(async (_deps, _request, { profile }) => json(200, centerProfile(profile)));
 
 // Changes a Center's timezone. The profile is a head with history: the new
 // version is written as a history item and the head is replaced, in one
 // transaction that only succeeds if the head is still at the expected version.
 // Records already saved keep the dates they were saved with.
-export const changeCenter = centerOwner(async ({ clock, db, tableName }, { event }, { personId, centerId, orgId, profile }) => {
+export const changeCenter = centerManager(async ({ clock, db, tableName }, { event }, caller) => {
+  const { personId, centerId, profile } = caller;
   const now = clock.now();
   const parsed = parseCenterChange(parseBody(event), now);
   if ("problem" in parsed) return json(400, { message: parsed.problem });
@@ -38,8 +39,8 @@ export const changeCenter = centerOwner(async ({ clock, db, tableName }, { event
       changeId, ...(reason !== undefined && { reason }), requestHash: hash,
     }, { returnExisting: true }),
     replaceIfVersion(tableName, { ...changed, ...centerKeys.profile }, expectedVersion),
-    // The person must still be an Owner when the change is saved.
-    mustExist(tableName, keys.orgOwner({ orgId, personId })),
+    // The person must still have their access when the change is saved.
+    stillAllowed(tableName, caller),
   ], (original) => original.requestHash === hash);
   if (saved.outcome === "repeated") return json(200, centerProfile(saved.original));
   if (saved.outcome === "refused") return centerNotFound();
@@ -53,7 +54,7 @@ function staleChange() {
 
 // Every version of a Center's profile, oldest first, with who saved it, when
 // and why.
-export const getCenterHistory = centerOwner(async ({ db, tableName }, _request, { centerId }) => {
+export const getCenterHistory = centerManager(async ({ db, tableName }, _request, { centerId }) => {
   const items = [];
   // A Query returns at most 1 MB at a time, so read every page.
   let startKey: Record<string, unknown> | undefined;

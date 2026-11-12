@@ -182,6 +182,12 @@ class ApiClient {
           return valueString == 'true' || valueString == '1';
         case 'DateTime':
           return value is DateTime ? value : DateTime.tryParse(value);
+        case 'Admin':
+          return Admin.fromJson(value);
+        case 'AdminList':
+          return AdminList.fromJson(value);
+        case 'CenterAccess':
+          return CenterAccess.fromJson(value);
         case 'CenterChange':
           return CenterChange.fromJson(value);
         case 'CenterHistory':
@@ -202,10 +208,18 @@ class ApiClient {
           return Health.fromJson(value);
         case 'HealthUnavailable':
           return HealthUnavailable.fromJson(value);
+        case 'InvitableRole':
+          return InvitableRoleTypeTransformer().decode(value);
+        case 'Invitation':
+          return Invitation.fromJson(value);
+        case 'InvitationAcceptance':
+          return InvitationAcceptance.fromJson(value);
         case 'Me':
           return Me.fromJson(value);
         case 'NewCenter':
           return NewCenter.fromJson(value);
+        case 'NewInvitation':
+          return NewInvitation.fromJson(value);
         case 'NewOrganization':
           return NewOrganization.fromJson(value);
         case 'Organization':

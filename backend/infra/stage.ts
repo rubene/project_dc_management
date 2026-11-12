@@ -88,6 +88,9 @@ export function createStageStack(scope: Construct, stage: Stage, { account, admi
     billing: Billing.onDemand(),
     pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: settings.retainData },
     deletionProtection: settings.retainData,
+    // Short-lived items, such as invitations, set `ttl`. Reads still check
+    // `expiresAt`, since DynamoDB deletes them lazily.
+    timeToLiveAttribute: "ttl",
     removalPolicy,
   });
 

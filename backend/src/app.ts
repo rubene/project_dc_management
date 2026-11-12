@@ -1,8 +1,10 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { appointSelfAsAdmin, listAdmins, removeAdmin } from "./admins.js";
 import { changeCenter, getCenter, getCenterHistory } from "./centers.js";
 import type { Clock } from "./clock.js";
 import { getHealth } from "./health.js";
+import { acceptInvitation, createInvitation } from "./invitations.js";
 import { json } from "./http.js";
 import { addCenter, createOrganization, listCenters } from "./organizations.js";
 import { getMe, signUp } from "./people.js";
@@ -29,6 +31,11 @@ const routes: Record<string, Route> = {
   "GET /centers/{centerId}": getCenter,
   "PATCH /centers/{centerId}": changeCenter,
   "GET /centers/{centerId}/history": getCenterHistory,
+  "POST /centers/{centerId}/invitations": createInvitation,
+  "POST /centers/{centerId}/invitations/accept": acceptInvitation,
+  "GET /centers/{centerId}/admins": listAdmins,
+  "PUT /centers/{centerId}/admins/{personId}": appointSelfAsAdmin,
+  "DELETE /centers/{centerId}/admins/{personId}": removeAdmin,
 };
 
 const matchers = Object.entries(routes).map(([operation, route]) => {

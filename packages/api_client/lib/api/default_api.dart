@@ -16,6 +16,67 @@ class DefaultApi {
 
   final ApiClient apiClient;
 
+  /// Accept an invitation to a Center and take its Role there
+  ///
+  /// Accepting the same invitation again returns the same result, so the app can retry. 
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  ///
+  /// * [InvitationAcceptance] invitationAcceptance (required):
+  Future<Response> acceptInvitationWithHttpInfo(String centerId, InvitationAcceptance invitationAcceptance,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/centers/{centerId}/invitations/accept'
+      .replaceAll('{centerId}', centerId);
+
+    // ignore: prefer_final_locals
+    Object? postBody = invitationAcceptance;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Accept an invitation to a Center and take its Role there
+  ///
+  /// Accepting the same invitation again returns the same result, so the app can retry. 
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  ///
+  /// * [InvitationAcceptance] invitationAcceptance (required):
+  Future<CenterAccess?> acceptInvitation(String centerId, InvitationAcceptance invitationAcceptance,) async {
+    final response = await acceptInvitationWithHttpInfo(centerId, invitationAcceptance,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'CenterAccess',) as CenterAccess;
+    
+    }
+    return null;
+  }
+
   /// Add a Center to an Organization the signed-in person owns
   ///
   /// Note: This method returns the HTTP [Response].
@@ -68,6 +129,68 @@ class DefaultApi {
     // FormatException when trying to decode an empty string.
     if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
       return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'CenterProfile',) as CenterProfile;
+    
+    }
+    return null;
+  }
+
+  /// Make the signed-in Owner an Admin of one of their Centers
+  ///
+  /// `personId` must be the signed-in Owner's own. Anyone else becomes an Admin by accepting an invitation. Appointing an Owner who's already an Admin changes nothing. 
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  ///
+  /// * [String] personId (required):
+  Future<Response> appointSelfAsAdminWithHttpInfo(String centerId, String personId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/centers/{centerId}/admins/{personId}'
+      .replaceAll('{centerId}', centerId)
+      .replaceAll('{personId}', personId);
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'PUT',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Make the signed-in Owner an Admin of one of their Centers
+  ///
+  /// `personId` must be the signed-in Owner's own. Anyone else becomes an Admin by accepting an invitation. Appointing an Owner who's already an Admin changes nothing. 
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  ///
+  /// * [String] personId (required):
+  Future<Admin?> appointSelfAsAdmin(String centerId, String personId,) async {
+    final response = await appointSelfAsAdminWithHttpInfo(centerId, personId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Admin',) as Admin;
     
     }
     return null;
@@ -134,6 +257,67 @@ class DefaultApi {
     return null;
   }
 
+  /// Invite a person to a Center, for an Owner of its Organization
+  ///
+  /// The response holds the invitation's token, the only time it's shown. The app sends it to the person as a link. Only a login with the invitation's email can accept it, within 7 days. Sending the same request again makes another invitation, and an unused one expires. 
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  ///
+  /// * [NewInvitation] newInvitation (required):
+  Future<Response> createInvitationWithHttpInfo(String centerId, NewInvitation newInvitation,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/centers/{centerId}/invitations'
+      .replaceAll('{centerId}', centerId);
+
+    // ignore: prefer_final_locals
+    Object? postBody = newInvitation;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>['application/json'];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Invite a person to a Center, for an Owner of its Organization
+  ///
+  /// The response holds the invitation's token, the only time it's shown. The app sends it to the person as a link. Only a login with the invitation's email can accept it, within 7 days. Sending the same request again makes another invitation, and an unused one expires. 
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  ///
+  /// * [NewInvitation] newInvitation (required):
+  Future<Invitation?> createInvitation(String centerId, NewInvitation newInvitation,) async {
+    final response = await createInvitationWithHttpInfo(centerId, newInvitation,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'Invitation',) as Invitation;
+    
+    }
+    return null;
+  }
+
   /// Create an Organization with its first Center, owned by the signed-in person
   ///
   /// Note: This method returns the HTTP [Response].
@@ -186,7 +370,7 @@ class DefaultApi {
     return null;
   }
 
-  /// A Center's profile, for an Owner of its Organization
+  /// A Center's profile, for an Owner of its Organization or an Admin of the Center
   ///
   /// Note: This method returns the HTTP [Response].
   ///
@@ -219,7 +403,7 @@ class DefaultApi {
     );
   }
 
-  /// A Center's profile, for an Owner of its Organization
+  /// A Center's profile, for an Owner of its Organization or an Admin of the Center
   ///
   /// Parameters:
   ///
@@ -380,6 +564,59 @@ class DefaultApi {
     return null;
   }
 
+  /// A Center's Admins, for an Owner of its Organization or an Admin of the Center
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  Future<Response> listAdminsWithHttpInfo(String centerId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/centers/{centerId}/admins'
+      .replaceAll('{centerId}', centerId);
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// A Center's Admins, for an Owner of its Organization or an Admin of the Center
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  Future<AdminList?> listAdmins(String centerId,) async {
+    final response = await listAdminsWithHttpInfo(centerId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
+    // When a remote server returns no body with a status of 204, we shall not decode it.
+    // At the time of writing this, `dart:convert` will throw an "Unexpected end of input"
+    // FormatException when trying to decode an empty string.
+    if (response.body.isNotEmpty && response.statusCode != HttpStatus.noContent) {
+      return await apiClient.deserializeAsync(await _decodeBodyBytes(response), 'AdminList',) as AdminList;
+    
+    }
+    return null;
+  }
+
   /// The Centers of an Organization the signed-in person owns
   ///
   /// Note: This method returns the HTTP [Response].
@@ -431,6 +668,60 @@ class DefaultApi {
     
     }
     return null;
+  }
+
+  /// Take the Admin Role away from a person at a Center
+  ///
+  /// For an Owner of the Center's Organization, who may remove themselves. It takes effect on the person's next request. Removing someone who isn't an Admin changes nothing, so the app can retry. 
+  ///
+  /// Note: This method returns the HTTP [Response].
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  ///
+  /// * [String] personId (required):
+  Future<Response> removeAdminWithHttpInfo(String centerId, String personId,) async {
+    // ignore: prefer_const_declarations
+    final path = r'/centers/{centerId}/admins/{personId}'
+      .replaceAll('{centerId}', centerId)
+      .replaceAll('{personId}', personId);
+
+    // ignore: prefer_final_locals
+    Object? postBody;
+
+    final queryParams = <QueryParam>[];
+    final headerParams = <String, String>{};
+    final formParams = <String, String>{};
+
+    const contentTypes = <String>[];
+
+
+    return apiClient.invokeAPI(
+      path,
+      'DELETE',
+      queryParams,
+      postBody,
+      headerParams,
+      formParams,
+      contentTypes.isEmpty ? null : contentTypes.first,
+    );
+  }
+
+  /// Take the Admin Role away from a person at a Center
+  ///
+  /// For an Owner of the Center's Organization, who may remove themselves. It takes effect on the person's next request. Removing someone who isn't an Admin changes nothing, so the app can retry. 
+  ///
+  /// Parameters:
+  ///
+  /// * [String] centerId (required):
+  ///
+  /// * [String] personId (required):
+  Future<void> removeAdmin(String centerId, String personId,) async {
+    final response = await removeAdminWithHttpInfo(centerId, personId,);
+    if (response.statusCode >= HttpStatus.badRequest) {
+      throw ApiException(response.statusCode, await _decodeBodyBytes(response));
+    }
   }
 
   /// Sign up the person behind the current login

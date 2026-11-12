@@ -35,6 +35,20 @@ export function mustExist(tableName: string, key: Item) {
   return { ConditionCheck: { TableName: tableName, Key: key, ...itemExists } };
 }
 
+// A transaction check that a person's item at a Center still holds a Role,
+// such as the Admin Role that allows a write.
+export function mustHoldRole(tableName: string, key: Item, role: string) {
+  return {
+    ConditionCheck: {
+      TableName: tableName,
+      Key: key,
+      ConditionExpression: "contains(#roles, :role)",
+      ExpressionAttributeNames: { "#roles": "roles" },
+      ExpressionAttributeValues: { ":role": role },
+    },
+  };
+}
+
 // A transaction put that replaces a head, and fails unless the head is still
 // at the version the change expects, so two changes can't both win.
 export function replaceIfVersion(tableName: string, item: Item, expectedVersion: number) {
@@ -49,7 +63,11 @@ export function replaceIfVersion(tableName: string, item: Item, expectedVersion:
   };
 }
 
-type Write = ReturnType<typeof createOnly> | ReturnType<typeof mustExist> | ReturnType<typeof replaceIfVersion>;
+type Write =
+  | ReturnType<typeof createOnly>
+  | ReturnType<typeof mustExist>
+  | ReturnType<typeof mustHoldRole>
+  | ReturnType<typeof replaceIfVersion>;
 
 export type WriteOutcome =
   | { outcome: "written" }
@@ -58,7 +76,7 @@ export type WriteOutcome =
   // A different request got there first: an item with the same ID already
   // exists, or the head has moved past the version a change expected.
   | { outcome: "conflict" }
-  // A `mustExist` check failed.
+  // A `mustExist` or `mustHoldRole` check failed.
   | { outcome: "refused" };
 
 // Writes a create or change transaction once. Its first write is a

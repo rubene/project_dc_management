@@ -146,7 +146,7 @@ paths:
           type: string
     get:
       operationId: getCenter
-      summary: A Center's profile, for an Owner of its Organization
+      summary: A Center's profile, for an Owner of its Organization or an Admin of the Center
       responses:
         "200":
           description: The Center's current profile.
@@ -219,6 +219,161 @@ paths:
           $ref: "#/components/responses/SignUpFirst"
         "404":
           $ref: "#/components/responses/CenterNotFound"
+  /centers/{centerId}/invitations:
+    parameters:
+      - name: centerId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: createInvitation
+      summary: Invite a person to a Center, for an Owner of its Organization
+      description: >
+        The response holds the invitation's token, the only time it's shown.
+        The app sends it to the person as a link. Only a login with the
+        invitation's email can accept it, within 7 days. Sending the same
+        request again makes another invitation, and an unused one expires.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewInvitation"
+      responses:
+        "201":
+          description: The invitation, with its token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invitation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/SignUpFirst"
+        "404":
+          $ref: "#/components/responses/CenterNotFound"
+  /centers/{centerId}/invitations/accept:
+    parameters:
+      - name: centerId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: acceptInvitation
+      summary: Accept an invitation to a Center and take its Role there
+      description: >
+        Accepting the same invitation again returns the same result, so the
+        app can retry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationAcceptance"
+      responses:
+        "200":
+          description: The Center, with the signed-in person's Roles there.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CenterAccess"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: >
+            The login hasn't signed up yet, or the invitation is for a
+            different email address than the login's.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >
+            No such invitation, or it has expired or was accepted by someone
+            else. The cases aren't told apart.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /centers/{centerId}/admins:
+    parameters:
+      - name: centerId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: listAdmins
+      summary: A Center's Admins, for an Owner of its Organization or an Admin of the Center
+      responses:
+        "200":
+          description: The Center's Admins.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/SignUpFirst"
+        "404":
+          $ref: "#/components/responses/CenterNotFound"
+  /centers/{centerId}/admins/{personId}:
+    parameters:
+      - name: centerId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: personId
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      operationId: appointSelfAsAdmin
+      summary: Make the signed-in Owner an Admin of one of their Centers
+      description: >
+        `personId` must be the signed-in Owner's own. Anyone else becomes an
+        Admin by accepting an invitation. Appointing an Owner who's already an
+        Admin changes nothing.
+      responses:
+        "200":
+          description: The new Admin.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Admin"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/SignUpFirst"
+        "404":
+          $ref: "#/components/responses/CenterNotFound"
+    delete:
+      operationId: removeAdmin
+      summary: Take the Admin Role away from a person at a Center
+      description: >
+        For an Owner of the Center's Organization, who may remove themselves.
+        It takes effect on the person's next request. Removing someone who
+        isn't an Admin changes nothing, so the app can retry.
+      responses:
+        "204":
+          description: The person isn't an Admin of the Center.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/SignUpFirst"
+        "404":
+          $ref: "#/components/responses/CenterNotFound"
 components:
   securitySchemes:
     cognito:
@@ -239,9 +394,8 @@ components:
             $ref: "#/components/schemas/Error"
     CenterNotFound:
       description: >
-        No such Center, or the signed-in person isn't an Owner of its
-        Organization. The two aren't told apart, so nobody learns which
-        Centers exist.
+        No such Center, or the signed-in person may not do this there. The
+        two aren't told apart, so nobody learns which Centers exist.
       content:
         application/json:
           schema:
@@ -288,10 +442,10 @@ components:
           type: string
           format: email
     Me:
-      description: The signed-in person, with the Organizations they belong to.
+      description: The signed-in person, with the Organizations and Centers they hold Roles at.
       type: object
       additionalProperties: false
-      required: [personId, name, email, organizations]
+      required: [personId, name, email, organizations, centers]
       properties:
         personId:
           type: string
@@ -304,6 +458,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/OrganizationAccess"
+        centers:
+          type: array
+          items:
+            $ref: "#/components/schemas/CenterAccess"
     OrganizationAccess:
       type: object
       additionalProperties: false
@@ -318,6 +476,92 @@ components:
           items:
             type: string
             enum: [Owner]
+    NewInvitation:
+      type: object
+      additionalProperties: false
+      required: [role, name, email]
+      properties:
+        role:
+          $ref: "#/components/schemas/InvitableRole"
+        name:
+          description: The invited person's name, for the Owner's list.
+          type: string
+          minLength: 1
+          maxLength: 200
+        email:
+          description: The email address of the login that may accept it.
+          type: string
+          format: email
+    Invitation:
+      type: object
+      additionalProperties: false
+      required: [token, centerId, role, name, email, expiresAt]
+      properties:
+        token:
+          description: The secret that accepts the invitation. It's never shown again.
+          type: string
+        centerId:
+          type: string
+        role:
+          $ref: "#/components/schemas/InvitableRole"
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        expiresAt:
+          type: string
+          format: date-time
+    InvitableRole:
+      description: The Role an invitation gives at the Center.
+      type: string
+      enum: [Admin]
+    InvitationAcceptance:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token:
+          type: string
+          minLength: 1
+    AdminList:
+      type: object
+      additionalProperties: false
+      required: [admins]
+      properties:
+        admins:
+          type: array
+          items:
+            $ref: "#/components/schemas/Admin"
+    Admin:
+      type: object
+      additionalProperties: false
+      required: [personId, name, email]
+      properties:
+        personId:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+    CenterAccess:
+      description: A Center the signed-in person holds Roles at.
+      type: object
+      additionalProperties: false
+      required: [id, name, orgId, roles]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        orgId:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [Admin]
     NewOrganization:
       type: object
       additionalProperties: false

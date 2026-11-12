@@ -77,7 +77,7 @@ class FakeBackend {
           .where((org) => org['ownerId'] == personId)
           .map((org) => {'id': org['id'], 'name': org['name'], 'roles': ['Owner']})
           .toList();
-      return _json(200, {..._people[personId]!, 'organizations': organizations});
+      return _json(200, {..._people[personId]!, 'organizations': organizations, 'centers': <Object>[]});
     }
     if (request.method == 'POST' && path == '/organizations') {
       final center = {...body!['center'] as Map<String, Object?>, 'orgId': body['id'], 'version': 1};
