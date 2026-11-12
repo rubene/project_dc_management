@@ -2,6 +2,7 @@ import 'package:dc_api_client/api.dart';
 import 'package:flutter/material.dart';
 import 'package:ulid/ulid.dart';
 
+import '../timezones.dart';
 import 'form.dart';
 
 /// The Organization the person owns, as the Centers screens need it.
@@ -31,18 +32,12 @@ class CreateOrganizationScreen extends StatefulWidget {
 
 class _CreateOrganizationScreenState extends State<CreateOrganizationScreen> {
   final _name = TextEditingController();
-  final _center = CenterFields();
+  late final _center = CenterFields(widget.browserTimezone);
   // Made once per form, so a retry sends the same ID and can't create the
   // Organization twice.
   final _orgId = Ulid().toString().toUpperCase();
   String? _error;
   bool _busy = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _center.timezone.text = widget.browserTimezone;
-  }
 
   Future<void> _create() async {
     setState(() => _busy = true);
@@ -75,20 +70,25 @@ class _CreateOrganizationScreenState extends State<CreateOrganizationScreen> {
   );
 }
 
-/// A new Center's fields: name, the currency it bills in, and its timezone.
+/// A new Center's fields: name, the currency it bills in, and its timezone,
+/// which starts as the browser's.
 class CenterFields {
+  CenterFields(String browserTimezone)
+    : timezone = browserTimezone,
+      timezones = timezonesOffered(browserTimezone);
+
   final name = TextEditingController();
-  final timezone = TextEditingController();
+  final List<Timezone> timezones;
+  String timezone;
   // Made once per form, so a retry sends the same ID.
   final id = Ulid().toString().toUpperCase();
   Currency currency = Currency.USD;
 
-  NewCenter toNewCenter() =>
-      NewCenter(id: id, name: name.text.trim(), currency: currency, timezone: timezone.text.trim());
+  NewCenter toNewCenter() => NewCenter(id: id, name: name.text.trim(), currency: currency, timezone: timezone);
 }
 
 /// The inputs for [CenterFields]. [onChanged] redraws the form when the
-/// currency changes.
+/// currency or timezone changes.
 List<Widget> centerFieldInputs(CenterFields center, {required String nameLabel, required VoidCallback onChanged}) => [
   TextField(controller: center.name, decoration: InputDecoration(labelText: nameLabel)),
   SegmentedButton<Currency>(
@@ -99,11 +99,20 @@ List<Widget> centerFieldInputs(CenterFields center, {required String nameLabel, 
       onChanged();
     },
   ),
-  TextField(
-    controller: center.timezone,
+  DropdownButtonFormField<String>(
+    initialValue: center.timezone,
+    isExpanded: true,
     decoration: const InputDecoration(
       labelText: 'Timezone',
-      helperText: 'Filled in from this browser. Change it if the Center is somewhere else.',
+      helperText: "This browser's timezone. Change it if the Center is somewhere else.",
     ),
+    items: [
+      for (final zone in center.timezones) DropdownMenuItem(value: zone.iana, child: Text(zone.label)),
+    ],
+    onChanged: (zone) {
+      if (zone == null) return;
+      center.timezone = zone;
+      onChanged();
+    },
   ),
 ];

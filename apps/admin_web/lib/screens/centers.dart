@@ -86,15 +86,9 @@ class AddCenterScreen extends StatefulWidget {
 }
 
 class _AddCenterScreenState extends State<AddCenterScreen> {
-  final _center = CenterFields();
+  late final _center = CenterFields(widget.browserTimezone);
   String? _error;
   bool _busy = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _center.timezone.text = widget.browserTimezone;
-  }
 
   Future<void> _add() async {
     setState(() => _busy = true);
