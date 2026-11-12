@@ -58,7 +58,7 @@ A record's API path carries every part of its key, so reading or correcting it i
 
 - Every item has `type` and `centerId` (or `orgId`) attributes, so exports don't parse keys.
 - Times are UTC ISO-8601 strings. The Center stores its IANA timezone for local dates and closing time. The Owner picks it when creating the Center, filled in from the browser. It can change later. Existing records keep the dates they were saved with, and the change keeps history.
-- A person's ID is separate from their Cognito user ID, because Authorized Pickups and Emergency Contacts without a login need IDs too. The token carries the person ID as a custom claim, so `LOGIN#<sub>` is read only at sign-up.
+- A person's ID is separate from their Cognito user ID, because Authorized Pickups and Emergency Contacts without a login need IDs too. The token carries the person ID as a custom `personId` claim, so the API never reads `LOGIN#<sub>`. Only sign-up writes it, and Cognito's pre-token-generation trigger reads it each time it issues tokens.
 - Short-lived items (sessions, invitations, Assistant text, dedupe markers) set a `ttl` attribute. DynamoDB deletes them lazily, so reads also check `expiresAt`.
 - Access checks always use strongly consistent reads of the base table, never the secondary index, so removing access takes effect on the next request.
 - The table has no local secondary index, so no partition has a size limit, and none may be added. Child partitions grow for years.
