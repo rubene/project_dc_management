@@ -1,12 +1,13 @@
 import { createHash, randomBytes } from "node:crypto";
 import { TransactionCanceledException } from "@aws-sdk/client-dynamodb";
-import { GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
+import { TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { centerNotFound, centerOwner, signedUp, stillAllowed } from "./access.js";
 import { json, parseBody } from "./http.js";
 import { createOnly, writeOnce } from "./idempotency.js";
-import { centerAccess, grantRole, rolesOf } from "./centerPeople.js";
+import { centerAccess, grantRole, rolesOf, type CenterRole } from "./centerPeople.js";
 import { keys } from "./keys.js";
 import { mainTableKeys } from "./mainTable.js";
+import { consistentGet } from "./reads.js";
 import { recordedBy } from "./records.js";
 import { cleanEmail, cleanName, isObject, unknownField, type Parsed } from "./validation.js";
 
@@ -14,10 +15,9 @@ import { cleanEmail, cleanName, isObject, unknownField, type Parsed } from "./va
 const invitationLifetimeMs = 7 * 24 * 60 * 60 * 1000;
 
 // The Roles a person can be invited to. Staff and Guardians come later.
-const invitableRoles = ["Admin"] as const;
-type InvitableRole = (typeof invitableRoles)[number];
+const invitableRoles: readonly CenterRole[] = ["Admin"];
 
-type NewInvitation = { role: InvitableRole; name: string; email: string };
+type NewInvitation = { role: CenterRole; name: string; email: string };
 
 // An Owner invites a person to a Center by email. The response holds the
 // invitation's token, the only time it's ever shown, for the Owner to send as
@@ -52,7 +52,8 @@ export const createInvitation = centerOwner(async ({ clock, db, tableName }, { e
 // invitation's Role at the Center. An invitation works once. Accepting it
 // again returns the same result while the person still holds the Role, so the
 // app can retry, but it never gives the Role back after an Owner removed it.
-export const acceptInvitation = signedUp(async ({ clock, db, tableName }, { event, params }, { personId, email }) => {
+export const acceptInvitation = signedUp(async (deps, { event, params }, { personId, email, emailVerified }) => {
+  const { clock, db, tableName } = deps;
   const centerId = params.centerId;
   const body = parseBody(event);
   if (!isObject(body) || unknownField(body, ["token"]) || typeof body.token !== "string" || !body.token) {
@@ -64,8 +65,7 @@ export const acceptInvitation = signedUp(async ({ clock, db, tableName }, { even
   const accessKey = keys.personCenterAccess({ personId, centerId });
 
   const now = clock.now();
-  const read = (key: Record<string, string>) =>
-    db.send(new GetCommand({ TableName: tableName, Key: key, ConsistentRead: true })).then((output) => output.Item);
+  const read = (key: Record<string, string>) => consistentGet(deps, key);
   // A repeat of an accepted invitation by the same person.
   const repeated = async (role: string) => {
     const access = await read(accessKey);
@@ -77,10 +77,10 @@ export const acceptInvitation = signedUp(async ({ clock, db, tableName }, { even
   ]);
   if (!invitation || !profile || !person) return invitationNotFound();
   if (typeof invitation.expiresAt !== "string" || invitation.expiresAt <= now.toISOString()) return invitationNotFound();
-  if (invitation.email !== email.toLowerCase()) {
-    return json(403, { message: "This invitation is for a different email address. Sign in with that one to accept it." });
+  if (!emailVerified || invitation.email !== email.toLowerCase()) {
+    return json(403, { message: "This invitation is for a different email address. Sign in with that one, confirmed, to accept it." });
   }
-  const role = invitation.role as InvitableRole;
+  const role = invitation.role as CenterRole;
   if (invitation.acceptedBy !== undefined) {
     return invitation.acceptedBy === personId ? repeated(role) : invitationNotFound();
   }
@@ -125,12 +125,12 @@ function parseNewInvitation(body: unknown): Parsed<NewInvitation> {
   if (!isObject(body)) return { problem: "Send the invitation as a JSON object" };
   const unknown = unknownField(body, ["role", "name", "email"]);
   if (unknown) return { problem: `An invitation has no field "${unknown}"` };
-  if (!invitableRoles.includes(body.role as InvitableRole)) {
+  if (!invitableRoles.includes(body.role as CenterRole)) {
     return { problem: `An invitation's role must be ${invitableRoles.join(" or ")}` };
   }
   const name = cleanName(body.name);
   if (!name) return { problem: "An invitation needs the person's name, 1 to 200 characters" };
   const email = cleanEmail(body.email);
   if (!email) return { problem: "An invitation needs the person's email address" };
-  return { value: { role: body.role as InvitableRole, name, email } };
+  return { value: { role: body.role as CenterRole, name, email } };
 }

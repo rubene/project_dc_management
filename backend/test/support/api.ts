@@ -53,7 +53,13 @@ function proxyEvent(method: string, path: string, body: unknown, login?: Login):
     body: body === undefined ? null : JSON.stringify(body),
     isBase64Encoded: false,
     requestContext: {
-      authorizer: login ? { claims: { ...login } } : null,
+      authorizer: login ? { claims: claimsOf(login) } : null,
     } as APIGatewayProxyEvent["requestContext"],
   };
+}
+
+// A login's token claims, as API Gateway passes them: all strings, with
+// Cognito's names.
+function claimsOf({ sub, email, emailVerified, personId }: Login) {
+  return { sub, email, email_verified: String(emailVerified), ...(personId && { personId }) };
 }

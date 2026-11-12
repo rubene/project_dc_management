@@ -598,7 +598,7 @@ Name | Type | Description  | Notes
 
 Take the Admin Role away from a person at a Center
 
-For an Owner of the Center's Organization, who may remove themselves. It takes effect on the person's next request. Removing someone who isn't an Admin changes nothing, so the app can retry. 
+For an Owner of the Center's Organization, who may remove themselves. It takes effect on the person's next request, and cancels the person's invitations to the Center that they haven't accepted. Removing someone who isn't an Admin changes nothing else, so the app can retry. 
 
 ### Example
 ```dart

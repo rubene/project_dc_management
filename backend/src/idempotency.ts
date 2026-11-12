@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { TransactionCanceledException } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { TransactWriteCommand, type DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import type { mustHoldRole } from "./centerPeople.js";
 import { itemExists, itemIsNew } from "./keys.js";
 
 // Creates and changes are conditional transactions whose first item keeps a
@@ -33,20 +34,6 @@ export function createOnly(tableName: string, item: Item, { returnExisting = fal
 // allows a write.
 export function mustExist(tableName: string, key: Item) {
   return { ConditionCheck: { TableName: tableName, Key: key, ...itemExists } };
-}
-
-// A transaction check that a person's item at a Center still holds a Role,
-// such as the Admin Role that allows a write.
-export function mustHoldRole(tableName: string, key: Item, role: string) {
-  return {
-    ConditionCheck: {
-      TableName: tableName,
-      Key: key,
-      ConditionExpression: "contains(#roles, :role)",
-      ExpressionAttributeNames: { "#roles": "roles" },
-      ExpressionAttributeValues: { ":role": role },
-    },
-  };
 }
 
 // A transaction put that replaces a head, and fails unless the head is still

@@ -7,7 +7,7 @@ export type { Login } from "../../src/auth.js";
 // A Cognito login nobody has used yet.
 export function newLogin(): Login {
   const sub = randomUUID();
-  return { sub, email: `${sub}@example.test` };
+  return { sub, email: `${sub}@example.test`, emailVerified: true };
 }
 
 // A login whose person has signed up, as their token's claims look afterwards.

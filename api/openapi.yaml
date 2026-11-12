@@ -288,7 +288,8 @@ paths:
         "403":
           description: >
             The login hasn't signed up yet, or the invitation is for a
-            different email address than the login's.
+            different email address than the login's, or the login's email
+            isn't verified.
           content:
             application/json:
               schema:
@@ -363,11 +364,13 @@ paths:
       summary: Take the Admin Role away from a person at a Center
       description: >
         For an Owner of the Center's Organization, who may remove themselves.
-        It takes effect on the person's next request. Removing someone who
-        isn't an Admin changes nothing, so the app can retry.
+        It takes effect on the person's next request, and cancels the
+        person's invitations to the Center that they haven't accepted.
+        Removing someone who isn't an Admin changes nothing else, so the app
+        can retry.
       responses:
         "204":
-          description: The person isn't an Admin of the Center.
+          description: The person isn't an Admin of the Center and has no pending invitation to it.
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":

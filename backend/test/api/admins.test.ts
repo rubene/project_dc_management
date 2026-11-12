@@ -11,16 +11,13 @@ const ownerWithOrganization = () => ownerWithOrganizationAt(api, clock);
 
 // The Owner invites the person by their login's email, and the person accepts
 // with the invitation's token.
-async function invite(owner: Login, centerId: string, person: Login) {
-  const response = await api.as(owner).post(`/centers/${centerId}/invitations`, {
-    role: "Admin", name: "Ari Admin", email: person.email,
-  });
-  return response;
+function invite(owner: Login, centerId: string, person: Login, name = "Ari Admin") {
+  return api.as(owner).post(`/centers/${centerId}/invitations`, { role: "Admin", name, email: person.email });
 }
 
 async function appointedAdmin(owner: Login, centerId: string, name = "Ari Admin") {
   const admin = await signedUp(api, name);
-  const invitation = await invite(owner, centerId, admin);
+  const invitation = await invite(owner, centerId, admin, name);
   const { token } = invitation.body as { token: string };
   await api.as(admin).post(`/centers/${centerId}/invitations/accept`, { token });
   return admin;
@@ -73,6 +70,19 @@ describe("accepting an invitation", () => {
     const response = await api.as(invited).post(`/centers/${firstCenterId}/invitations/accept`, { token });
 
     expect(response.status).toBe(200);
+  });
+
+  // Cognito lets a person change their email, which leaves it unverified
+  // until they confirm it.
+  test("a login whose email isn't verified can't accept", async () => {
+    const invited = await signedUp(api, "Ari Admin");
+    const { centerId, token } = await invitationFor(invited);
+
+    const response = await api.as({ ...invited, emailVerified: false })
+      .post(`/centers/${centerId}/invitations/accept`, { token });
+
+    expect(response.status).toBe(403);
+    expect((await api.as(invited).get(`/centers/${centerId}`)).status).toBe(404);
   });
 
   // The app retries if it loses the response.
@@ -280,6 +290,20 @@ describe("removing an Admin", () => {
 
     expect(again.status).toBe(404);
     expect((await api.as(admin).get(`/centers/${firstCenterId}`)).status).toBe(404);
+  });
+
+  test("removing a person cancels the invitations they haven't accepted yet", async () => {
+    const { owner, firstCenterId } = await ownerWithOrganization();
+    const admin = await appointedAdmin(owner, firstCenterId);
+    const { token: unused } = (await invite(owner, firstCenterId, admin)).body as { token: string };
+    const someoneElse = await signedUp(api, "Sam Stranger");
+    const { token: theirs } = (await invite(owner, firstCenterId, someoneElse)).body as { token: string };
+
+    await api.as(owner).delete(`/centers/${firstCenterId}/admins/${admin.personId}`);
+
+    expect((await api.as(admin).post(`/centers/${firstCenterId}/invitations/accept`, { token: unused })).status).toBe(404);
+    expect((await api.as(admin).get(`/centers/${firstCenterId}`)).status).toBe(404);
+    expect((await api.as(someoneElse).post(`/centers/${firstCenterId}/invitations/accept`, { token: theirs })).status).toBe(200);
   });
 
   test("an Admin who accepts a new invitation after being removed is an Admin again", async () => {

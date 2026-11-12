@@ -1,10 +1,10 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { GetCommand } from "@aws-sdk/lib-dynamodb";
 import type { Deps, PathParams, Route } from "./app.js";
 import { loginFrom, type Login } from "./auth.js";
-import { rolesOf } from "./centerPeople.js";
+import { mustHoldRole, rolesOf } from "./centerPeople.js";
 import { json } from "./http.js";
-import { mustExist, mustHoldRole } from "./idempotency.js";
+import { mustExist } from "./idempotency.js";
+import { consistentGet } from "./reads.js";
 import { keys } from "./keys.js";
 
 // Who may call an operation. Each wrapper turns a handler that needs a
@@ -26,10 +26,10 @@ export type Person = { personId: string };
 
 // A login that has signed up. A token without a person ID was issued before
 // sign-up, so the app signs up and refreshes the token.
-export function signedUp(handler: Handler<Person & { email: string }>): Route {
-  return signedIn(async (deps, request, { personId, email }) => {
+export function signedUp(handler: Handler<Person & { email: string; emailVerified: boolean }>): Route {
+  return signedIn(async (deps, request, { personId, email, emailVerified }) => {
     if (!personId) return json(403, { message: "Sign up first, then refresh the login's tokens" });
-    return handler(deps, request, { personId, email });
+    return handler(deps, request, { personId, email, emailVerified });
   });
 }
 
@@ -45,14 +45,14 @@ export function orgOwner(handler: Handler<Owner>): Route {
   });
 }
 
-// The access a caller was let in with at a Center.
-export type CenterAccess = "Owner" | "Admin";
+// What a caller was let in as at a Center.
+export type CenterAccessLevel = "Owner" | "Admin";
 
 export type CenterCaller = Person & {
   centerId: string;
   orgId: string;
   profile: Record<string, unknown>;
-  access: CenterAccess;
+  access: CenterAccessLevel;
 };
 
 // An Owner of the Organization the Center in the path belongs to. The handler
@@ -67,7 +67,7 @@ export function centerManager(handler: Handler<CenterCaller>): Route {
   return atCenter(["Owner", "Admin"], handler);
 }
 
-function atCenter(allowed: CenterAccess[], handler: Handler<CenterCaller>): Route {
+function atCenter(allowed: CenterAccessLevel[], handler: Handler<CenterCaller>): Route {
   return signedUp(async (deps, request, { personId }) => {
     const { centerId } = request.params;
     if (!centerId) return centerNotFound();
@@ -95,13 +95,8 @@ export function stillAllowed(tableName: string, { access, orgId, centerId, perso
 }
 
 // A3: a person's Roles at a Center, read consistently.
-export async function centerRoles(deps: Deps, { centerId, personId }: { centerId: string; personId: string }) {
+async function centerRoles(deps: Deps, { centerId, personId }: { centerId: string; personId: string }) {
   return rolesOf(await consistentGet(deps, keys.center(centerId).person(personId)));
-}
-
-async function consistentGet({ db, tableName }: Deps, key: Record<string, string>) {
-  const { Item } = await db.send(new GetCommand({ TableName: tableName, Key: key, ConsistentRead: true }));
-  return Item;
 }
 
 export function centerNotFound() {
@@ -115,11 +110,6 @@ export function organizationNotFound() {
 // A5: whether a person is an Owner of an Organization. Access checks always
 // read the base table with a strongly consistent read, so removing access
 // takes effect on the next request.
-async function isOwner({ db, tableName }: Deps, owner: { orgId: string; personId: string }): Promise<boolean> {
-  const { Item } = await db.send(new GetCommand({
-    TableName: tableName,
-    Key: keys.orgOwner(owner),
-    ConsistentRead: true,
-  }));
-  return Item !== undefined;
+async function isOwner(deps: Deps, owner: { orgId: string; personId: string }): Promise<boolean> {
+  return await consistentGet(deps, keys.orgOwner(owner)) !== undefined;
 }

@@ -1,9 +1,9 @@
-import { QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { centerManager, centerNotFound, stillAllowed } from "./access.js";
 import { centerProfile } from "./centerProfile.js";
 import { json, parseBody } from "./http.js";
 import { writeOnce, createOnly, replaceIfVersion, requestHash } from "./idempotency.js";
-import { keys, queryByPrefix } from "./keys.js";
+import { keys } from "./keys.js";
+import { queryAll } from "./reads.js";
 import { recordedBy } from "./records.js";
 import { deviceIdProblem, isDeviceId } from "./ids.js";
 import { ianaTimezone, isObject, unknownField, type Parsed } from "./validation.js";
@@ -54,20 +54,8 @@ function staleChange() {
 
 // Every version of a Center's profile, oldest first, with who saved it, when
 // and why.
-export const getCenterHistory = centerManager(async ({ db, tableName }, _request, { centerId }) => {
-  const items = [];
-  // A Query returns at most 1 MB at a time, so read every page.
-  let startKey: Record<string, unknown> | undefined;
-  do {
-    const page = await db.send(new QueryCommand({
-      TableName: tableName,
-      ...queryByPrefix(keys.center(centerId).profileVersions),
-      ConsistentRead: true,
-      ExclusiveStartKey: startKey,
-    }));
-    items.push(...(page.Items ?? []));
-    startKey = page.LastEvaluatedKey;
-  } while (startKey);
+export const getCenterHistory = centerManager(async (deps, _request, { centerId }) => {
+  const items = await queryAll(deps, keys.center(centerId).profileVersions);
   return json(200, {
     versions: items.map((item) => ({
       version: item.version,

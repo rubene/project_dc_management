@@ -45,6 +45,20 @@ export function revokeRole(tableName: string, { centerId, personId }: { centerId
   }));
 }
 
+// A transaction check that a person's item at a Center still holds a Role,
+// such as the Admin Role that allows a write.
+export function mustHoldRole(tableName: string, key: Item, role: CenterRole) {
+  return {
+    ConditionCheck: {
+      TableName: tableName,
+      Key: key,
+      ConditionExpression: "contains(#roles, :role)",
+      ExpressionAttributeNames: { "#roles": "roles" },
+      ExpressionAttributeValues: { ":role": role },
+    },
+  };
+}
+
 // The Roles on an item, sorted. Removing the last one removes the attribute.
 export function rolesOf(item: Item | undefined): string[] {
   return item?.roles instanceof Set ? [...item.roles as Set<string>].sort() : [];

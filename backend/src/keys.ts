@@ -7,7 +7,7 @@ import { mainTableKeys } from "./mainTable.js";
 const { partitionKey, sortKey } = mainTableKeys;
 
 type Key = { [partitionKey]: string; [sortKey]: string };
-type Prefix = { partition: string; sortPrefix: string };
+export type Prefix = { partition: string; sortPrefix: string };
 
 function key(partition: string, sort: string): Key {
   return { [partitionKey]: partition, [sortKey]: sort };
@@ -55,7 +55,14 @@ function centerKeys(centerId: string) {
     // A11: the invitation behind an invitation link. Only the token's hash is
     // stored, so reading the table doesn't give anyone a working link.
     invitation: (tokenHash: string) => key(`${partition}#PEOPLE`, `INVITE#${tokenHash}`),
+    // A12: the Center's invitations.
+    invitations: { partition: `${partition}#PEOPLE`, sortPrefix: "INVITE#" } satisfies Prefix,
   };
+}
+
+// The key of an item read from the table.
+export function keyOf(item: Record<string, unknown>): Key {
+  return key(item[partitionKey] as string, item[sortKey] as string);
 }
 
 // The parts of a Query that read one partition's items whose sort key starts
