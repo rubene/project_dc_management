@@ -16,6 +16,8 @@ test(`the deployed ${stage} API refuses a made-up token`, async () => {
   const response = await fetch(new URL("me", stageUrl("ApiUrl")), {
     headers: { authorization: "Bearer not-a-real-token" },
   });
+  const body: unknown = await response.json();
 
   expect(response.status).toBe(401);
+  assertMatchesDefinition("GET", "/me", response.status, body);
 });

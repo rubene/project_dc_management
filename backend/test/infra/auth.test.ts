@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { stageNames } from "../../infra/stage.js";
 import { synth } from "../support/synth.js";
+import { actionsAllowedFor, apiMethods, preTokenTrigger } from "../support/template.js";
 
 describe.each(stageNames)("logins in the %s stage", (stage) => {
   // MFA is optional for everyone for now (#51).
@@ -18,40 +19,42 @@ describe.each(stageNames)("logins in the %s stage", (stage) => {
     });
   });
 
+  // Losing the user pool loses every login, and logins can't be moved to a
+  // new pool. Dev only holds made-up data.
+  test(stage === "dev"
+    ? "the user pool can be deleted with the stack"
+    : "the user pool is kept, and protected from deletion", () => {
+    const { template } = synth(stage);
+
+    template.hasResource("AWS::Cognito::UserPool", {
+      DeletionPolicy: stage === "dev" ? "Delete" : "Retain",
+      Properties: { DeletionProtection: stage === "dev" ? "INACTIVE" : "ACTIVE" },
+    });
+  });
+
   // Version 1, CDK's default, would silently ignore the claims the trigger
   // adds, and every request would then get 403.
   test("the pre-token trigger runs as version 2 and can only read the table", () => {
     const { template } = synth(stage);
 
-    const [pool] = Object.values(template.findResources("AWS::Cognito::UserPool"));
-    const trigger = pool!.Properties.LambdaConfig?.PreTokenGenerationConfig;
-    expect(trigger?.LambdaVersion).toBe("V2_0");
-
-    const functionId: string = trigger.LambdaArn["Fn::GetAtt"][0];
-    const roleId: string = template.toJSON().Resources[functionId].Properties.Role["Fn::GetAtt"][0];
-    const actions = Object.values(template.findResources("AWS::IAM::Policy"))
-      .filter((policy) => policy.Properties.Roles.some((role: { Ref: string }) => role.Ref === roleId))
-      .flatMap((policy) => policy.Properties.PolicyDocument.Statement)
-      .flatMap((statement: { Action: string | string[] }) => [statement.Action].flat());
+    const trigger = preTokenTrigger(template);
+    expect(trigger.version).toBe("V2_0");
+    const actions = actionsAllowedFor(template, trigger.functionId);
     expect(actions).toContain("dynamodb:GetItem");
     expect(actions.filter((action) => /Put|Update|Delete|Write/.test(action))).toEqual([]);
   });
 
   // API Gateway checks the ID token and passes its claims to the API. A route
   // left open would answer anyone.
-  test("every API method needs a login, except the health check", () => {
+  test("every API method needs a login, except reading the health check", () => {
     const { template } = synth(stage);
 
-    const resources = template.toJSON().Resources as Record<string, { Type: string; Properties: Record<string, any> }>;
-    const methods = Object.values(resources).filter((resource) => resource.Type === "AWS::ApiGateway::Method");
-    const pathOf = (method: { Properties: Record<string, any> }) => {
-      const resourceId = method.Properties.ResourceId.Ref as string | undefined;
-      return resourceId ? resources[resourceId]!.Properties.PathPart : "/";
-    };
-    const open = methods.filter((method) => method.Properties.AuthorizationType !== "COGNITO_USER_POOLS");
-
-    expect(open.map((method) => `${method.Properties.HttpMethod} ${pathOf(method)}`)).toEqual(["GET health"]);
-    expect(methods.length).toBeGreaterThan(1);
+    const methods = apiMethods(template);
+    expect(methods.filter((method) => !method.needsLogin).map((method) => method.route)).toEqual(["GET health"]);
+    // Every path and method still reaches the API, which answers the ones it
+    // doesn't have with 404.
+    expect(methods.filter((method) => method.needsLogin).map((method) => method.route).sort())
+      .toEqual(["ANY /", "ANY health", "ANY {proxy+}"]);
     template.hasResourceProperties("AWS::ApiGateway::Authorizer", {
       Type: "COGNITO_USER_POOLS",
       IdentitySource: "method.request.header.Authorization",

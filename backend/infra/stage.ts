@@ -118,6 +118,8 @@ export function createStageStack(scope: Construct, stage: Stage, { account, admi
     mfaSecondFactor: { otp: true, sms: false },
     // Version 2 of the pre-token trigger needs the Essentials plan.
     featurePlan: FeaturePlan.ESSENTIALS,
+    // Losing the pool loses every login, and logins can't be moved to a new one.
+    deletionProtection: settings.retainData,
     removalPolicy,
   });
 
@@ -165,8 +167,12 @@ export function createStageStack(scope: Construct, stage: Stage, { account, admi
   // Every path still goes to the one API Lambda (ADR 0009), which routes it.
   api.root.addMethod("ANY");
   api.root.addProxy({ anyMethod: true });
-  // The health check stays open, for the deployed check and monitoring.
-  api.root.addResource("health").addMethod("GET", undefined, { authorizationType: AuthorizationType.NONE });
+  // Reading the health check stays open, for the deployed check and
+  // monitoring. Its other methods need a login like everything else, and the
+  // API answers them with 404.
+  const health = api.root.addResource("health");
+  health.addMethod("GET", undefined, { authorizationType: AuthorizationType.NONE });
+  health.addMethod("ANY");
 
   new CfnOutput(stack, "ApiUrl", { value: api.url });
   new CfnOutput(stack, "UserPoolId", { value: logins.userPoolId });

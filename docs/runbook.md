@@ -34,6 +34,21 @@ Each stage has a Cognito user pool, `dc-<stage>-logins`. Its ID and the apps' cl
 
 The apps' client signs in only with SRP, which the Admin web app does through Amplify. A request sends the ID token as `Authorization: Bearer <token>`. After signing up with `PUT /me`, the app gets new tokens, because only tokens issued after sign-up carry the `personId` claim.
 
+### Create a test login in dev
+
+Dev only holds made-up data, so use an address you control, such as a `+test` alias. Create and confirm the login without waiting for the email:
+
+```sh
+POOL=<UserPoolId>; CLIENT=<AppClientId>; EMAIL=you+test1@example.com
+aws cognito-idp sign-up --client-id $CLIENT --username $EMAIL --password '<a long password>' \
+  --user-attributes Name=email,Value=$EMAIL --region us-west-2 --no-sign-request
+aws cognito-idp admin-confirm-sign-up --user-pool-id $POOL --username $EMAIL --profile project_dc
+```
+
+Then sign in with it in the Admin web app. To remove it: `aws cognito-idp admin-delete-user --user-pool-id $POOL --username $EMAIL --profile project_dc`. Its person and records stay in the table, which dev doesn't mind.
+
+Cognito sends its own emails, such as sign-up codes, from its default sender, which allows about 50 a day. That's enough for dev, but production needs its own sender through SES before launch.
+
 ## Common problems
 
 ### Every request gets 403 "Sign up first", even after signing up

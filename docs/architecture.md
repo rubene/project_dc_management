@@ -26,7 +26,7 @@ Everything runs in `us-west-2` ([ADR 0006](adr/0006-single-region-us-west-2.md))
 
 ## The API
 
-- **One contract.** [`api/openapi.yaml`](../api/openapi.yaml) describes every operation. The apps' Dart client in `packages/api_client` is generated from it by `packages/generate-api-client.sh` (openapi-generator's `dart` generator, run in Docker) and committed. Every API test checks responses against it, and a path it doesn't describe must return its `Error` response with a 404.
+- **One contract.** [`api/openapi.yaml`](../api/openapi.yaml) describes every operation. The apps' Dart client in `packages/api_client` is generated from it by `packages/generate-api-client.sh` (openapi-generator's `dart` generator, run in Docker) and committed. Every API test checks responses against it, and a path it doesn't describe must return its `Error` response with a 404 to a signed-in request. Without a valid token, API Gateway answers every path except `GET /health` with 401 before the API sees it.
 - **One Lambda.** API Gateway sends every request to a single API Lambda, which routes by method and path (`backend/src/app.ts`). Adding an operation means adding a route and documenting it in the OpenAPI definition. Scheduled jobs, Step Functions steps and the Assistant will get their own functions that reuse the same app code ([ADR 0009](adr/0009-one-lambda-serves-the-whole-api.md)).
 - **Dependencies are passed in.** The app is built from its dependencies (`createApp({ clock, db, tableName })`). The Lambda passes the real ones; tests pass DynamoDB Local and fakes.
 - **Time comes from the `Clock`.** Business rules call `clock.now()`, never `new Date()`, so tests can set the time.
