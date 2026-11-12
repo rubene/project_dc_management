@@ -5,14 +5,19 @@ import { createPreTokenGeneration } from "../../src/preTokenGeneration.js";
 import { localClient } from "./dynamodbLocal.js";
 import type { Login } from "./logins.js";
 
+type Options = {
+  triggerSource?: PreTokenGenerationV2TriggerEvent["triggerSource"];
+  tableName?: string;
+};
+
 // Calls the pre-token-generation trigger the way Cognito would when it issues
 // a login's tokens, against DynamoDB Local, and returns the claims it adds.
-export async function claimsAddedFor(login: Login) {
+export async function claimsAddedFor(login: Login, options: Options = {}) {
   const trigger = createPreTokenGeneration({
     db: DynamoDBDocumentClient.from(localClient(inject("dynamoEndpoint"))),
-    tableName: inject("tableName"),
+    tableName: options.tableName ?? inject("tableName"),
   });
-  const result = await trigger(tokenGenerationEvent(login));
+  const result = await trigger(tokenGenerationEvent(login, options.triggerSource ?? "TokenGeneration_Authentication"));
   const overrides = result.response.claimsAndScopeOverrideDetails;
   return {
     idToken: overrides?.idTokenGeneration?.claimsToAddOrOverride ?? {},
@@ -20,10 +25,12 @@ export async function claimsAddedFor(login: Login) {
   };
 }
 
-function tokenGenerationEvent({ sub, email }: Login): PreTokenGenerationV2TriggerEvent {
-  return {
+function tokenGenerationEvent(
+  { sub, email }: Login, triggerSource: PreTokenGenerationV2TriggerEvent["triggerSource"],
+): PreTokenGenerationV2TriggerEvent {
+  const event = {
     version: "2",
-    triggerSource: "TokenGeneration_Authentication",
+    triggerSource,
     region: "us-west-2",
     userPoolId: "us-west-2_test",
     userName: sub,
@@ -33,6 +40,7 @@ function tokenGenerationEvent({ sub, email }: Login): PreTokenGenerationV2Trigge
       groupConfiguration: { groupsToOverride: [], iamRolesToOverride: [] },
       scopes: ["openid", "email"],
     },
-    response: { claimsAndScopeOverrideDetails: null },
-  } as unknown as PreTokenGenerationV2TriggerEvent;
+    response: { claimsAndScopeOverrideDetails: {} },
+  } satisfies Omit<PreTokenGenerationV2TriggerEvent, "triggerSource"> & { triggerSource: string };
+  return event as PreTokenGenerationV2TriggerEvent;
 }

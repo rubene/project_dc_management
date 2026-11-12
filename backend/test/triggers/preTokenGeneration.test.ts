@@ -24,4 +24,22 @@ describe("pre-token generation", () => {
     const me = await testApi().as({ ...login, ...claims.idToken }).get("/me");
     expect(me.status).toBe(200);
   });
+
+  test("refreshed tokens carry the person ID too", async () => {
+    const login = newLogin();
+    const signUp = await testApi().as(login).put("/me", { name: "Ana Owner" });
+    const { personId } = signUp.body as { personId: string };
+
+    const claims = await claimsAddedFor(login, { triggerSource: "TokenGeneration_RefreshTokens" });
+
+    expect(claims.idToken).toMatchObject({ personId });
+  });
+
+  // An error here would make Cognito refuse the login itself. Without the
+  // claim the API answers 403, and the next refresh adds it.
+  test("if the database can't be read, the login still gets its tokens, without a person ID", async () => {
+    const claims = await claimsAddedFor(newLogin(), { tableName: "no-such-table" });
+
+    expect(claims.idToken).not.toHaveProperty("personId");
+  });
 });
