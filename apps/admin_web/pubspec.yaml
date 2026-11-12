@@ -16,7 +16,6 @@ dependencies:
     path: ../../packages/ui
   amplify_flutter: ^2.11.0
   amplify_auth_cognito: ^2.11.0
-  ulid: ^2.2.0
   http: ^1.6.0
 
 dev_dependencies:

@@ -38,6 +38,7 @@ Apps:
 cd apps/mobile      # or apps/admin_web
 flutter pub get
 flutter test        # screen tests against a fake API, using the generated client
+flutter test --platform chrome test/device_id_test.dart   # admin_web only: IDs made in a real browser
 flutter analyze
 ```
 

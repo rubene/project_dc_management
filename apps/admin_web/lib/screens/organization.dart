@@ -1,7 +1,7 @@
 import 'package:dc_api_client/api.dart';
 import 'package:flutter/material.dart';
-import 'package:ulid/ulid.dart';
 
+import '../device_id.dart';
 import '../timezones.dart';
 import 'form.dart';
 
@@ -35,7 +35,7 @@ class _CreateOrganizationScreenState extends State<CreateOrganizationScreen> {
   late final _center = CenterFields(widget.browserTimezone);
   // Made once per form, so a retry sends the same ID and can't create the
   // Organization twice.
-  final _orgId = Ulid().toString().toUpperCase();
+  final _orgId = newDeviceId();
   String? _error;
   bool _busy = false;
 
@@ -81,7 +81,7 @@ class CenterFields {
   final List<Timezone> timezones;
   String timezone;
   // Made once per form, so a retry sends the same ID.
-  final id = Ulid().toString().toUpperCase();
+  final id = newDeviceId();
   Currency currency = Currency.USD;
 
   NewCenter toNewCenter() => NewCenter(id: id, name: name.text.trim(), currency: currency, timezone: timezone);

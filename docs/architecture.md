@@ -65,5 +65,6 @@ Each stage's settings live in `backend/infra/stage.ts`. The account comes from t
 | `infra` (logins) | `npm test` | The user pool signs in by email with optional authenticator-app MFA, the pre-token trigger runs as version 2 and can only read the table, and every API method except `GET /health` needs a Cognito login |
 | `deployed` | `npm run check:deployed` | A deployed stage answers `/health` and can read its table, and refuses requests without a valid token. The Admin web app is served through CloudFront, its address reaches the API, it's told the stage's user pool, and the bucket refuses direct requests |
 | App screens | `flutter test` in each app | Each app's screens, with the real generated client talking to a fake API |
+| Admin web in a browser | `flutter test --platform chrome test/device_id_test.dart` in `apps/admin_web` | IDs made in the browser hold the right time. The screen tests run on the Dart VM, whose integers differ from the browser's, which once put IDs in 1970 |
 
 Fakes for outside systems are added only when a ticket first needs them. So far there's one: the clock (`backend/test/support/fakeClock.ts`).
