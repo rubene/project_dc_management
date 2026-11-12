@@ -1,6 +1,10 @@
 import { fileURLToPath } from "node:url";
 import { CfnOutput, Duration, RemovalPolicy, Stack, Tags } from "aws-cdk-lib";
-import { LambdaRestApi } from "aws-cdk-lib/aws-apigateway";
+import {
+  AuthorizationType,
+  CognitoUserPoolsAuthorizer,
+  LambdaRestApi,
+} from "aws-cdk-lib/aws-apigateway";
 import {
   AllowedMethods,
   CachePolicy,
@@ -10,6 +14,14 @@ import {
   ViewerProtocolPolicy,
 } from "aws-cdk-lib/aws-cloudfront";
 import { HttpOrigin, S3BucketOrigin } from "aws-cdk-lib/aws-cloudfront-origins";
+import {
+  AccountRecovery,
+  FeaturePlan,
+  LambdaVersion,
+  Mfa,
+  UserPool,
+  UserPoolOperation,
+} from "aws-cdk-lib/aws-cognito";
 import { AttributeType, Billing, TableV2 } from "aws-cdk-lib/aws-dynamodb";
 import { Architecture, Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
@@ -94,13 +106,77 @@ export function createStageStack(scope: Construct, stage: Stage, { account, admi
   });
   table.grantReadWriteData(apiFunction);
 
+  // Logins. Cognito handles login only; Roles live in DynamoDB. MFA is
+  // optional for everyone for now (#51).
+  const logins = new UserPool(stack, "Logins", {
+    userPoolName: `${name}-logins`,
+    signInAliases: { email: true },
+    selfSignUpEnabled: true,
+    autoVerify: { email: true },
+    accountRecovery: AccountRecovery.EMAIL_ONLY,
+    mfa: Mfa.OPTIONAL,
+    mfaSecondFactor: { otp: true, sms: false },
+    // Version 2 of the pre-token trigger needs the Essentials plan.
+    featurePlan: FeaturePlan.ESSENTIALS,
+    // Losing the pool loses every login, and logins can't be moved to a new one.
+    deletionProtection: settings.retainData,
+    removalPolicy,
+  });
+
+  // Adds the person ID to a login's tokens once it has signed up. Its own
+  // function, reusing the app code, that can only read the table.
+  const preTokenGeneration = new NodejsFunction(stack, "PreTokenGenerationFunction", {
+    entry: fileURLToPath(new URL("../src/preTokenGenerationLambda.ts", import.meta.url)),
+    runtime: Runtime.NODEJS_24_X,
+    architecture: Architecture.ARM_64,
+    memorySize: 256,
+    // Cognito waits about 5 seconds; the trigger's own read gives up after 3.
+    timeout: Duration.seconds(5),
+    environment: { TABLE_NAME: table.tableName },
+    logGroup: new LogGroup(stack, "PreTokenGenerationLogs", {
+      logGroupName: `/dc/${stage}/pre-token-generation`,
+      retention: settings.logRetention,
+      removalPolicy,
+    }),
+  });
+  table.grantReadData(preTokenGeneration);
+  // Version 1, CDK's default, would silently ignore the claims it adds.
+  logins.addTrigger(UserPoolOperation.PRE_TOKEN_GENERATION_CONFIG, preTokenGeneration, LambdaVersion.V2_0);
+
+  // The apps sign in through this client: public, so no secret, using SRP.
+  const appClient = logins.addClient("AppClient", {
+    userPoolClientName: `${name}-apps`,
+    authFlows: { userSrp: true },
+    generateSecret: false,
+    preventUserExistenceErrors: true,
+  });
+
+  // Every method needs a Cognito ID token. API Gateway checks it and passes
+  // its claims to the API, which reads them in src/auth.ts.
   const api = new LambdaRestApi(stack, "Api", {
     handler: apiFunction,
     restApiName: name,
     deployOptions: { stageName: "v1" },
+    // Routes are added below, so the health check can have its own.
+    proxy: false,
+    defaultMethodOptions: {
+      authorizer: new CognitoUserPoolsAuthorizer(stack, "LoginAuthorizer", { cognitoUserPools: [logins] }),
+      authorizationType: AuthorizationType.COGNITO,
+    },
   });
+  // Every path still goes to the one API Lambda (ADR 0009), which routes it.
+  api.root.addMethod("ANY");
+  api.root.addProxy({ anyMethod: true });
+  // Reading the health check stays open, for the deployed check and
+  // monitoring. Its other methods need a login like everything else, and the
+  // API answers them with 404.
+  const health = api.root.addResource("health");
+  health.addMethod("GET", undefined, { authorizationType: AuthorizationType.NONE });
+  health.addMethod("ANY");
 
   new CfnOutput(stack, "ApiUrl", { value: api.url });
+  new CfnOutput(stack, "UserPoolId", { value: logins.userPoolId });
+  new CfnOutput(stack, "AppClientId", { value: appClient.userPoolClientId });
 
   // The Admin web app: a private bucket that only this stage's CloudFront
   // distribution can read, through Origin Access Control.
