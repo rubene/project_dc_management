@@ -7,17 +7,25 @@ import { parseStage, stackName, type Stage } from "../../infra/stage.js";
 // existing deployment passes the environment variables instead.
 export const stage = parseStage(process.env.STAGE ?? "dev");
 
-type OutputName = "ApiUrl" | "AdminWebUrl" | "AdminWebBucketUrl";
+type UrlOutput = "ApiUrl" | "AdminWebUrl" | "AdminWebBucketUrl";
+type OutputName = UrlOutput | "UserPoolId" | "AppClientId";
 
 const envVars: Record<OutputName, string> = {
   ApiUrl: "API_URL",
   AdminWebUrl: "ADMIN_WEB_URL",
   AdminWebBucketUrl: "ADMIN_WEB_BUCKET_URL",
+  UserPoolId: "USER_POOL_ID",
+  AppClientId: "APP_CLIENT_ID",
 };
+
+// A stack output that isn't a URL, such as the user pool's ID.
+export function stageOutput(name: OutputName) {
+  return process.env[envVars[name]] ?? fromCdkOutputs(stage, name);
+}
 
 // Always ends with a slash, so a relative URL adds to the last path segment
 // (such as the API's "v1" stage) instead of replacing it.
-export function stageUrl(name: OutputName) {
+export function stageUrl(name: UrlOutput) {
   const url = process.env[envVars[name]] ?? fromCdkOutputs(stage, name);
   return url.endsWith("/") ? url : `${url}/`;
 }

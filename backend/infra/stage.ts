@@ -213,7 +213,16 @@ export function createStageStack(scope: Construct, stage: Stage, { account, admi
   });
 
   new BucketDeployment(stack, "AdminWebDeployment", {
-    sources: [Source.asset(adminWebDir)],
+    sources: [
+      Source.asset(adminWebDir),
+      // The app reads its user pool from here at start-up, so one build
+      // works for every stage. The deploy invalidates CloudFront's copy.
+      Source.jsonData("config.json", {
+        region,
+        userPoolId: logins.userPoolId,
+        appClientId: appClient.userPoolClientId,
+      }),
+    ],
     destinationBucket: adminWebBucket,
     distribution: adminWeb,
   });
