@@ -1,16 +1,26 @@
 import 'package:dc_api_client/api.dart';
 import 'package:flutter/material.dart';
 
+import 'admins.dart';
 import 'form.dart';
 import 'organization.dart';
 
 /// An Owner's Organization and its Centers (C2).
 class CentersScreen extends StatefulWidget {
-  const CentersScreen({super.key, required this.api, required this.organization, required this.browserTimezone});
+  const CentersScreen({
+    super.key,
+    required this.api,
+    required this.organization,
+    required this.ownerPersonId,
+    required this.browserTimezone,
+    required this.appUrl,
+  });
 
   final DefaultApi api;
   final OwnedOrganization organization;
+  final String ownerPersonId;
   final String browserTimezone;
+  final Uri appUrl;
 
   @override
   State<CentersScreen> createState() => _CentersScreenState();
@@ -37,6 +47,17 @@ class _CentersScreenState extends State<CentersScreen> {
     ));
   }
 
+  void _openCenter(OwnedCenter center) {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => CenterAdminsScreen(
+        api: widget.api,
+        center: center,
+        ownerPersonId: widget.ownerPersonId,
+        appUrl: widget.appUrl,
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -55,7 +76,13 @@ class _CentersScreenState extends State<CentersScreen> {
           return ListView(
             children: [
               const ListTile(title: Text('Centers')),
-              for (final center in centers) ListTile(leading: const Icon(Icons.home_work_outlined), title: Text(center.name)),
+              for (final center in centers)
+                ListTile(
+                  leading: const Icon(Icons.home_work_outlined),
+                  title: Text(center.name),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _openCenter(OwnedCenter(id: center.id, name: center.name)),
+                ),
             ],
           );
         },

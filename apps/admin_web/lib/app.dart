@@ -3,7 +3,11 @@ import 'package:dc_ui/dc_ui.dart';
 import 'package:flutter/material.dart';
 
 import 'auth/auth.dart';
+import 'invitation_link.dart';
+import 'screens/admin_center.dart';
 import 'screens/authenticator_offer.dart';
+import 'screens/form.dart';
+import 'screens/invitation_problem.dart';
 import 'screens/centers.dart';
 import 'screens/organization.dart';
 import 'screens/signed_out.dart';
@@ -11,7 +15,14 @@ import 'screens/your_name.dart';
 
 /// The web app for Owners and Admins.
 class DcAdminWebApp extends StatelessWidget {
-  const DcAdminWebApp({super.key, required this.auth, required this.api, required this.browserTimezone});
+  const DcAdminWebApp({
+    super.key,
+    required this.auth,
+    required this.api,
+    required this.browserTimezone,
+    this.appUrl,
+    this.invitation,
+  });
 
   final Auth auth;
   final DefaultApi api;
@@ -19,12 +30,26 @@ class DcAdminWebApp extends StatelessWidget {
   /// The browser's IANA timezone, offered as a new Center's timezone.
   final String browserTimezone;
 
+  /// Where the app is served, for invitation links. Defaults to where it was
+  /// opened.
+  final Uri? appUrl;
+
+  /// The invitation the app was opened with, accepted once the person has
+  /// signed in.
+  final InvitationLink? invitation;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'DC Management Admin',
       theme: dcTheme(),
-      home: AdminHome(auth: auth, api: api, browserTimezone: browserTimezone),
+      home: AdminHome(
+        auth: auth,
+        api: api,
+        browserTimezone: browserTimezone,
+        appUrl: appUrl ?? Uri.base,
+        invitation: invitation,
+      ),
     );
   }
 }
@@ -71,22 +96,46 @@ class _GivingName extends _Stage {
   const _GivingName();
 }
 
+/// The invitation the app was opened with can't be used, and why.
+class _InvitationProblem extends _Stage {
+  const _InvitationProblem(this.message);
+
+  final String message;
+}
+
+/// An Admin who isn't an Owner, at the Center they run.
+class _RunningCenter extends _Stage {
+  const _RunningCenter(this.center);
+
+  final CenterAccess center;
+}
+
 class _CreatingOrganization extends _Stage {
   const _CreatingOrganization();
 }
 
 class _ManagingCenters extends _Stage {
-  const _ManagingCenters(this.organization);
+  const _ManagingCenters(this.organization, {required this.personId});
 
   final OwnedOrganization organization;
+  final String personId;
 }
 
 class AdminHome extends StatefulWidget {
-  const AdminHome({super.key, required this.auth, required this.api, required this.browserTimezone});
+  const AdminHome({
+    super.key,
+    required this.auth,
+    required this.api,
+    required this.browserTimezone,
+    required this.appUrl,
+    this.invitation,
+  });
 
   final Auth auth;
   final DefaultApi api;
   final String browserTimezone;
+  final Uri appUrl;
+  final InvitationLink? invitation;
 
   @override
   State<AdminHome> createState() => _AdminHomeState();
@@ -94,6 +143,9 @@ class AdminHome extends StatefulWidget {
 
 class _AdminHomeState extends State<AdminHome> {
   _Stage _stage = const _SigningIn();
+
+  /// The invitation still to accept, until it's been tried once.
+  late InvitationLink? _invitation = widget.invitation;
 
   void _go(_Stage stage) {
     setState(() => _stage = stage);
@@ -104,15 +156,50 @@ class _AdminHomeState extends State<AdminHome> {
     try {
       final me = await widget.api.getMe();
       if (!mounted || me == null) return;
-      // v1 Owners have one Organization; more would need a picker here.
+      final invitation = _invitation;
+      if (invitation != null) {
+        final (:accepted, :problem) = await _accept(invitation);
+        if (!mounted) return;
+        // Whatever it says, the person can carry on, or sign out and try the
+        // invitation with another login.
+        if (problem != null) return _go(_InvitationProblem(problem));
+        _invitation = null;
+        // Even an Owner goes to the Center they were just invited to run.
+        return _go(_RunningCenter(accepted!));
+      }
+      // v1 Owners have one Organization, and Admins one Center; more would
+      // need a picker here.
       final owned = me.organizations.firstOrNull;
-      _go(owned == null
-          ? const _CreatingOrganization()
-          : _ManagingCenters(OwnedOrganization(id: owned.id, name: owned.name)));
+      final run = me.centers.firstOrNull;
+      _go(switch ((owned, run)) {
+        (final owned?, _) => _ManagingCenters(OwnedOrganization(id: owned.id, name: owned.name), personId: me.personId),
+        (null, final run?) => _RunningCenter(run),
+        (null, null) => const _CreatingOrganization(),
+      });
     } on ApiException catch (error) {
       if (!mounted) return;
       if (error.code == 403) _go(const _GivingName());
     }
+  }
+
+  /// Accepts an invitation, or says why it couldn't be.
+  Future<({CenterAccess? accepted, String? problem})> _accept(InvitationLink invitation) async {
+    try {
+      final accepted = await widget.api.acceptInvitation(
+        invitation.centerId,
+        InvitationAcceptance(token: invitation.token),
+      );
+      return (accepted: accepted, problem: accepted == null ? "Couldn't accept the invitation. Try again." : null);
+    } on ApiException catch (error) {
+      // The API says why for an invitation that can't be used.
+      if (error.code == 403 || error.code == 404) return (accepted: null, problem: apiMessage(error));
+      return (accepted: null, problem: "Couldn't accept the invitation. Sign out and in to try again.");
+    }
+  }
+
+  Future<void> _signOut() async {
+    await widget.auth.signOut();
+    if (mounted) _go(const _SigningIn());
   }
 
   @override
@@ -146,16 +233,28 @@ class _AdminHomeState extends State<AdminHome> {
       _SettingUpAuthenticator() => AuthenticatorSetupScreen(auth: auth, onDone: () => _go(const _SignedIn())),
       _SignedIn() => const Scaffold(body: Center(child: CircularProgressIndicator())),
       _GivingName() => YourNameScreen(auth: auth, api: widget.api, onSignedUp: () => _go(const _SignedIn())),
+      _InvitationProblem(:final message) => InvitationProblemScreen(
+        message: message,
+        onContinue: () {
+          _invitation = null;
+          _go(const _SignedIn());
+        },
+        onSignOut: _signOut,
+      ),
+      _RunningCenter(:final center) => AdminCenterScreen(key: ValueKey(center.id), api: widget.api, center: center),
       _CreatingOrganization() => CreateOrganizationScreen(
         api: widget.api,
         browserTimezone: widget.browserTimezone,
-        onCreated: (organization) => _go(_ManagingCenters(organization)),
+        // Finding out who they are again gives their person ID.
+        onCreated: (_) => _go(const _SignedIn()),
       ),
-      _ManagingCenters(:final organization) => CentersScreen(
+      _ManagingCenters(:final organization, :final personId) => CentersScreen(
         key: ValueKey(organization.id),
         api: widget.api,
         organization: organization,
+        ownerPersonId: personId,
         browserTimezone: widget.browserTimezone,
+        appUrl: widget.appUrl,
       ),
     };
   }
