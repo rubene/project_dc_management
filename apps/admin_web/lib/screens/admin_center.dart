@@ -37,36 +37,3 @@ class _AdminCenterScreenState extends State<AdminCenterScreen> {
     );
   }
 }
-
-/// Why the invitation the app was opened with can't be used.
-class InvitationProblemScreen extends StatelessWidget {
-  const InvitationProblemScreen({super.key, required this.message, required this.onContinue});
-
-  final String message;
-  final VoidCallback onContinue;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text("This invitation can't be used", style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 16),
-                Text(message),
-                const SizedBox(height: 24),
-                FilledButton(onPressed: onContinue, child: const Text('Continue without it')),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

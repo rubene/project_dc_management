@@ -27,6 +27,17 @@ Widget app(FakeBackend backend, {InvitationLink? invitation}) => DcAdminWebApp(
   invitation: invitation,
 );
 
+/// Ari Admin, who has accepted an invitation to the Center and signed out.
+Future<void> acceptedAdmin(WidgetTester tester, FakeBackend backend, String centerId) async {
+  backend.addPerson('ari@example.test', 'pw-2', name: 'Ari Admin');
+  final token = backend.addInvitation(centerId, 'ari@example.test');
+  await tester.pumpWidget(app(backend, invitation: InvitationLink(centerId: centerId, token: token)));
+  await signIn(tester, 'ari@example.test', 'pw-2');
+  await backend.auth.signOut();
+  // A fresh start, as when the page is opened again.
+  await tester.pumpWidget(const SizedBox());
+}
+
 void main() {
   testWidgets('an Owner invites an Admin to a Center and gets a link to send them', (tester) async {
     final (:backend, :centerId) = ownerWithCenter();
@@ -41,8 +52,11 @@ void main() {
 
     final [sent] = backend.bodies['POST /centers/$centerId/invitations']!;
     expect(sent, {'role': 'Admin', 'name': 'Ari Admin', 'email': 'ari@example.test'});
-    final link = InvitationLink(centerId: centerId, token: 'token-1').toUri(appUrl).toString();
-    expect(find.text(link), findsOneWidget);
+    final shown = tester.widget<SelectableText>(find.byType(SelectableText)).data!;
+    final link = InvitationLink.fromUri(Uri.parse(shown))!;
+    expect(shown, startsWith('https://admin.example.test/?'));
+    expect(link.centerId, centerId);
+    expect(backend.invitedEmail(link.token), 'ari@example.test');
   });
 
   testWidgets('an invited Admin opens the link, signs in and runs their Center', (tester) async {
@@ -81,13 +95,8 @@ void main() {
 
   testWidgets('an Admin who signs in later goes straight to their Center', (tester) async {
     final (:backend, :centerId) = ownerWithCenter();
-    backend.addPerson('ari@example.test', 'pw-2', name: 'Ari Admin');
-    final token = backend.addInvitation(centerId, 'ari@example.test');
-    await tester.pumpWidget(app(backend, invitation: InvitationLink(centerId: centerId, token: token)));
-    await signIn(tester, 'ari@example.test', 'pw-2');
-    await backend.auth.signOut();
+    await acceptedAdmin(tester, backend, centerId);
 
-    await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(app(backend));
     await signIn(tester, 'ari@example.test', 'pw-2');
 
@@ -109,6 +118,50 @@ void main() {
     expect(find.text('Set up your Organization'), findsOneWidget);
   });
 
+  testWidgets('someone signed in with the wrong email signs out and accepts with the right one', (tester) async {
+    final (:backend, :centerId) = ownerWithCenter();
+    backend
+      ..addPerson('sam@example.test', 'pw-3', name: 'Sam Stranger')
+      ..addPerson('ari@example.test', 'pw-2', name: 'Ari Admin');
+    final token = backend.addInvitation(centerId, 'ari@example.test');
+    await tester.pumpWidget(app(backend, invitation: InvitationLink(centerId: centerId, token: token)));
+    await signIn(tester, 'sam@example.test', 'pw-3');
+
+    await tap(tester, 'Sign out');
+    await signIn(tester, 'ari@example.test', 'pw-2');
+
+    expect(backend.isAdmin(centerId, 'ari@example.test'), isTrue);
+    expect(find.text('You are an Admin here'), findsOneWidget);
+  });
+
+  testWidgets("an invitation that couldn't be accepted for another reason can be tried again", (tester) async {
+    final (:backend, :centerId) = ownerWithCenter();
+    backend.addPerson('ari@example.test', 'pw-2', name: 'Ari Admin');
+    final token = backend.addInvitation(centerId, 'ari@example.test');
+    backend.failNext('POST /centers/$centerId/invitations/accept');
+    await tester.pumpWidget(app(backend, invitation: InvitationLink(centerId: centerId, token: token)));
+    await signIn(tester, 'ari@example.test', 'pw-2');
+    expect(find.textContaining("Couldn't accept the invitation"), findsOneWidget);
+
+    await tap(tester, 'Sign out');
+    await signIn(tester, 'ari@example.test', 'pw-2');
+
+    expect(find.text('You are an Admin here'), findsOneWidget);
+  });
+
+  testWidgets('an Owner invited to run a Center of another Organization lands on it', (tester) async {
+    final (:backend, :centerId) = ownerWithCenter();
+    backend.addPerson('bo@example.test', 'pw-4', name: 'Bo Owner');
+    backend.addOrganization(ownerEmail: 'bo@example.test', name: 'Bright Kids', centerName: 'Bright Kids North');
+    final token = backend.addInvitation(centerId, 'bo@example.test');
+
+    await tester.pumpWidget(app(backend, invitation: InvitationLink(centerId: centerId, token: token)));
+    await signIn(tester, 'bo@example.test', 'pw-4');
+
+    expect(find.text('Little Oaks Downtown'), findsOneWidget);
+    expect(find.text('You are an Admin here'), findsOneWidget);
+  });
+
   testWidgets('an Owner makes themselves their Center\'s Admin too', (tester) async {
     final (:backend, :centerId) = ownerWithCenter();
     await tester.pumpWidget(app(backend));
@@ -125,18 +178,15 @@ void main() {
 
   testWidgets('an Owner removes an Admin', (tester) async {
     final (:backend, :centerId) = ownerWithCenter();
-    backend.addPerson('ari@example.test', 'pw-2', name: 'Ari Admin');
-    final token = backend.addInvitation(centerId, 'ari@example.test');
-    await tester.pumpWidget(app(backend, invitation: InvitationLink(centerId: centerId, token: token)));
-    await signIn(tester, 'ari@example.test', 'pw-2');
-    await backend.auth.signOut();
-    await tester.pumpWidget(const SizedBox());
+    await acceptedAdmin(tester, backend, centerId);
     await tester.pumpWidget(app(backend));
     await signIn(tester, 'ana@example.test', 'pw-1');
     await tap(tester, 'Little Oaks Downtown');
     expect(find.text('Ari Admin'), findsOneWidget);
 
     await tap(tester, 'Remove Ari Admin');
+    expect(find.text('Remove Ari Admin as an Admin of Little Oaks Downtown?'), findsOneWidget);
+    await tap(tester, 'Remove');
 
     expect(backend.isAdmin(centerId, 'ari@example.test'), isFalse);
     expect(find.text('Ari Admin'), findsNothing);

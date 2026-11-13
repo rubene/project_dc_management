@@ -56,6 +56,22 @@ class _CenterAdminsScreenState extends State<CenterAdminsScreen> {
     _reload();
   }
 
+  Future<void> _remove(Admin admin) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Remove ${admin.name} as an Admin of ${widget.center.name}?'),
+        content: const Text('They lose access to the Center right away.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Remove')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _change(() => widget.api.removeAdmin(widget.center.id, admin.personId));
+  }
+
   void _invite() {
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => InviteAdminScreen(api: widget.api, center: widget.center, appUrl: widget.appUrl),
@@ -89,7 +105,7 @@ class _CenterAdminsScreenState extends State<CenterAdminsScreen> {
                   title: Text(admin.personId == widget.ownerPersonId ? '${admin.name} (you)' : admin.name),
                   subtitle: Text(admin.email),
                   trailing: TextButton(
-                    onPressed: () => _change(() => widget.api.removeAdmin(center.id, admin.personId)),
+                    onPressed: () => _remove(admin),
                     child: Text('Remove ${admin.name}'),
                   ),
                 ),

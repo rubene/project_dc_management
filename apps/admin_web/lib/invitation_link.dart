@@ -16,5 +16,5 @@ class InvitationLink {
 
   /// The link, on the app at [appUrl].
   Uri toUri(Uri appUrl) =>
-      appUrl.replace(path: '/', queryParameters: {'center': centerId, 'invitation': token}, fragment: '');
+      appUrl.removeFragment().replace(queryParameters: {'center': centerId, 'invitation': token});
 }

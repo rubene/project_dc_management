@@ -22,8 +22,11 @@ class FakeBackend {
   /// The person IDs of each Center's Admins, by Center ID.
   final _admins = <String, Set<String>>{};
 
-  /// Unused invitations, by token: the Center ID and the invited email.
+  /// Invitations, by token: the Center ID and the invited email.
   final _invitations = <String, ({String centerId, String email})>{};
+
+  /// Who accepted each used invitation, by token.
+  final _acceptedBy = <String, String>{};
   int _nextToken = 1;
 
   /// Requests the API received, as "METHOD /path".
@@ -71,9 +74,16 @@ class FakeBackend {
   /// An invitation to be a Center's Admin, as an Owner sent it. Returns its token.
   String addInvitation(String centerId, String email) {
     final token = 'token-${_nextToken++}';
-    _invitations[token] = (centerId: centerId, email: email);
+    _invitations[token] = (centerId: centerId, email: email.trim().toLowerCase());
     return token;
   }
+
+  /// The email an unused invitation is for.
+  String? invitedEmail(String token) => _invitations[token]?.email;
+
+  /// Makes the next request to "METHOD /path" fail as a server error would.
+  void failNext(String request) => _failing.add(request);
+  final _failing = <String>{};
 
   /// Whether a person is an Admin of a Center.
   bool isAdmin(String centerId, String email) => _admins[centerId]?.contains(_personIdFor(email)) ?? false;
@@ -89,6 +99,7 @@ class FakeBackend {
   Future<http.Response> _handle(http.Request request) async {
     final path = request.url.path.replaceFirst('/v1', '');
     requests.add('${request.method} $path');
+    if (_failing.remove('${request.method} $path')) return _json(500, {'message': 'Internal server error'});
     final claims = _claimsFrom(request.headers['authorization']);
     if (claims == null) return _json(401, {'message': 'Unauthorized'});
     final email = claims['email']!;
@@ -159,16 +170,22 @@ class FakeBackend {
     final admins = _admins[centerId] ??= {};
 
     if (method == 'POST' && rest == '/invitations/accept') {
-      final invitation = _invitations[body!['token']];
-      if (invitation == null || invitation.centerId != centerId) {
+      final token = body!['token']! as String;
+      final invitation = _invitations[token];
+      final acceptedBy = _acceptedBy[token];
+      if (invitation == null || invitation.centerId != centerId || (acceptedBy != null && acceptedBy != personId)) {
         return _json(404, {'message': "This invitation doesn't exist, has expired or has already been used"});
       }
-      if (invitation.email != email) {
+      if (invitation.email != email.toLowerCase()) {
         return _json(403, {
           'message': 'This invitation is for a different email address. Sign in with that one, confirmed, to accept it.',
         });
       }
-      _invitations.remove(body['token']);
+      // Like the API, accepting again gives nothing back that was removed.
+      if (acceptedBy != null && !admins.contains(personId)) {
+        return _json(404, {'message': "This invitation doesn't exist, has expired or has already been used"});
+      }
+      _acceptedBy[token] = personId;
       admins.add(personId);
       return _json(200, _centerAccess(center));
     }
@@ -185,12 +202,19 @@ class FakeBackend {
     }
     final adminPath = RegExp(r'^/admins/([^/]+)$').firstMatch(rest);
     if (adminPath != null && method == 'PUT') {
-      if (adminPath.group(1) != personId) return _json(400, {'message': 'Invite anyone else'});
+      if (adminPath.group(1) != personId) {
+        return _json(400, {'message': 'An Owner can only appoint themselves directly. Invite anyone else.'});
+      }
       admins.add(personId);
       return _json(200, _people[personId]!);
     }
     if (adminPath != null && method == 'DELETE') {
-      admins.remove(adminPath.group(1));
+      final removed = adminPath.group(1)!;
+      admins.remove(removed);
+      // Like the API, removing someone cancels their unused invitations here.
+      final removedEmail = (_people[removed]?['email'] as String?)?.toLowerCase();
+      _invitations.removeWhere((token, invitation) =>
+          invitation.centerId == centerId && invitation.email == removedEmail && !_acceptedBy.containsKey(token));
       return http.Response('', 204);
     }
     return _json(404, {'message': 'Not found'});
