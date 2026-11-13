@@ -8,6 +8,15 @@ export function cleanName(value: unknown): string | undefined {
   return name.length >= 1 && name.length <= 200 ? name : undefined;
 }
 
+// An email address, trimmed and in lower case so two spellings of the same
+// address match. Cognito checks that a login owns its address; this only
+// catches typos.
+export function cleanEmail(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const email = value.trim().toLowerCase();
+  return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : undefined;
+}
+
 export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

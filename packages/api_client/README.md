@@ -49,14 +49,14 @@ import 'package:dc_api_client/api.dart';
 //defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken(yourTokenGeneratorFunction);
 
 final api_instance = DefaultApi();
-final orgId = orgId_example; // String | 
-final newCenter = NewCenter(); // NewCenter | 
+final centerId = centerId_example; // String | 
+final invitationAcceptance = InvitationAcceptance(); // InvitationAcceptance | 
 
 try {
-    final result = api_instance.addCenter(orgId, newCenter);
+    final result = api_instance.acceptInvitation(centerId, invitationAcceptance);
     print(result);
 } catch (e) {
-    print('Exception when calling DefaultApi->addCenter: $e\n');
+    print('Exception when calling DefaultApi->acceptInvitation: $e\n');
 }
 
 ```
@@ -67,19 +67,27 @@ All URIs are relative to *http://localhost*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+*DefaultApi* | [**acceptInvitation**](doc//DefaultApi.md#acceptinvitation) | **POST** /centers/{centerId}/invitations/accept | Accept an invitation to a Center and take its Role there
 *DefaultApi* | [**addCenter**](doc//DefaultApi.md#addcenter) | **POST** /organizations/{orgId}/centers | Add a Center to an Organization the signed-in person owns
+*DefaultApi* | [**appointSelfAsAdmin**](doc//DefaultApi.md#appointselfasadmin) | **PUT** /centers/{centerId}/admins/{personId} | Make the signed-in Owner an Admin of one of their Centers
 *DefaultApi* | [**changeCenter**](doc//DefaultApi.md#changecenter) | **PATCH** /centers/{centerId} | Change a Center's timezone, keeping its history
+*DefaultApi* | [**createInvitation**](doc//DefaultApi.md#createinvitation) | **POST** /centers/{centerId}/invitations | Invite a person to a Center, for an Owner of its Organization
 *DefaultApi* | [**createOrganization**](doc//DefaultApi.md#createorganization) | **POST** /organizations | Create an Organization with its first Center, owned by the signed-in person
-*DefaultApi* | [**getCenter**](doc//DefaultApi.md#getcenter) | **GET** /centers/{centerId} | A Center's profile, for an Owner of its Organization
+*DefaultApi* | [**getCenter**](doc//DefaultApi.md#getcenter) | **GET** /centers/{centerId} | A Center's profile, for an Owner of its Organization or an Admin of the Center
 *DefaultApi* | [**getCenterHistory**](doc//DefaultApi.md#getcenterhistory) | **GET** /centers/{centerId}/history | Every version of a Center's profile, oldest first
 *DefaultApi* | [**getHealth**](doc//DefaultApi.md#gethealth) | **GET** /health | Check that the API is up
 *DefaultApi* | [**getMe**](doc//DefaultApi.md#getme) | **GET** /me | The signed-in person
+*DefaultApi* | [**listAdmins**](doc//DefaultApi.md#listadmins) | **GET** /centers/{centerId}/admins | A Center's Admins, for an Owner of its Organization or an Admin of the Center
 *DefaultApi* | [**listCenters**](doc//DefaultApi.md#listcenters) | **GET** /organizations/{orgId}/centers | The Centers of an Organization the signed-in person owns
+*DefaultApi* | [**removeAdmin**](doc//DefaultApi.md#removeadmin) | **DELETE** /centers/{centerId}/admins/{personId} | Take the Admin Role away from a person at a Center
 *DefaultApi* | [**signUp**](doc//DefaultApi.md#signup) | **PUT** /me | Sign up the person behind the current login
 
 
 ## Documentation For Models
 
+ - [Admin](doc//Admin.md)
+ - [AdminList](doc//AdminList.md)
+ - [CenterAccess](doc//CenterAccess.md)
  - [CenterChange](doc//CenterChange.md)
  - [CenterHistory](doc//CenterHistory.md)
  - [CenterList](doc//CenterList.md)
@@ -90,8 +98,12 @@ Class | Method | HTTP request | Description
  - [Error](doc//Error.md)
  - [Health](doc//Health.md)
  - [HealthUnavailable](doc//HealthUnavailable.md)
+ - [InvitableRole](doc//InvitableRole.md)
+ - [Invitation](doc//Invitation.md)
+ - [InvitationAcceptance](doc//InvitationAcceptance.md)
  - [Me](doc//Me.md)
  - [NewCenter](doc//NewCenter.md)
+ - [NewInvitation](doc//NewInvitation.md)
  - [NewOrganization](doc//NewOrganization.md)
  - [Organization](doc//Organization.md)
  - [OrganizationAccess](doc//OrganizationAccess.md)

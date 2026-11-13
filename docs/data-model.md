@@ -91,6 +91,13 @@ The last column is how the Center's export and deletion find each partition (C8)
 Notes on the less obvious choices:
 
 - **A person's Roles are written twice, in one transaction.** `C#<c>#PEOPLE / PERSON#<p>` is the one access checks read. `PERSON#<p> / ACCESS#C#<c>` lets the app list a person's Centers at login.
+  - `roles` is a DynamoDB string set, so granting or removing one Role is an `ADD` or `DELETE` that leaves the others alone. Removing the last Role leaves the items without `roles`, and nothing reads a person with no Roles as a member.
+- **An invitation stores only its token's hash.** `INVITE#<token hash>` holds the Role, the invited person's name and email, and `expiresAt`, 7 days on. The token itself is returned once, to the person who sent the invitation, so reading the table never gives anyone a working link.
+  - Only a login whose email matches the invitation's can accept it, and only once. Accepting sets `acceptedBy` and grants the Role in one transaction. A repeat by the same person returns the same result while they still hold the Role, but never gives back a Role that was since removed.
+  - The login's email must be verified, since Cognito leaves a changed email unverified until it's confirmed.
+  - Removing a person's Role deletes their invitations to the Center that they haven't accepted (A12), so they can't come back without a new one.
+  - Unlike other creates, sending an invitation again makes a new one with its own token rather than returning the first: the token is never stored, so it can't be returned twice. An unused invitation just expires.
+  - Until email sending arrives, the Admin web app shows the Owner the link to send themselves.
 - **A child's people are one head per person.** `REL#<p>` holds the person's flags for that child (Guardian, Authorized Pickup, Emergency Contact, Pickup Restriction, Records Restriction, former Guardian with a download window). One person can hold several at once.
 - **`LIVE` is a projection, never the source of truth.** Each `LIVE` item holds the state that follows from the person's latest event by `occurredAt`, with that event's ID and time, and its own `version`.
   - A new event that's later than the stored one updates the item on top of it.
@@ -167,7 +174,7 @@ Each query has an ID, so tickets and code can refer to it. "Get" is a single-ite
 | A9 | A shared tablet's current PIN session | #14 | Consistent Get `C#<c>#DEVICES / SESSION#<session>` |
 | A10 | A Center's registered devices | #14 | Query `C#<c>#DEVICES`, prefix `DEVICE#` |
 | A11 | The invitation behind an invitation link, which carries the Center ID and a token | #9, #12, #13, #40 | Get `C#<c>#PEOPLE / INVITE#<token hash>` |
-| A12 | A Center's pending invitations | #40 | Query `C#<c>#PEOPLE`, prefix `INVITE#` |
+| A12 | A Center's pending invitations | #9, #40 | Query `C#<c>#PEOPLE`, prefix `INVITE#` |
 | A13 | A person's push tokens | #16 | Query `PERSON#<p>`, prefix `DEVICE#` |
 | A14 | A person's notification settings at a Center | #28 | Get `PERSON#<p> / PREFS#C#<c>` |
 

@@ -17,6 +17,7 @@ class Me {
     required this.name,
     required this.email,
     this.organizations = const [],
+    this.centers = const [],
   });
 
   String personId;
@@ -27,12 +28,15 @@ class Me {
 
   List<OrganizationAccess> organizations;
 
+  List<CenterAccess> centers;
+
   @override
   bool operator ==(Object other) => identical(this, other) || other is Me &&
     other.personId == personId &&
     other.name == name &&
     other.email == email &&
-    _deepEquality.equals(other.organizations, organizations);
+    _deepEquality.equals(other.organizations, organizations) &&
+    _deepEquality.equals(other.centers, centers);
 
   @override
   int get hashCode =>
@@ -40,10 +44,11 @@ class Me {
     (personId.hashCode) +
     (name.hashCode) +
     (email.hashCode) +
-    (organizations.hashCode);
+    (organizations.hashCode) +
+    (centers.hashCode);
 
   @override
-  String toString() => 'Me[personId=$personId, name=$name, email=$email, organizations=$organizations]';
+  String toString() => 'Me[personId=$personId, name=$name, email=$email, organizations=$organizations, centers=$centers]';
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
@@ -51,6 +56,7 @@ class Me {
       json[r'name'] = this.name;
       json[r'email'] = this.email;
       json[r'organizations'] = this.organizations;
+      json[r'centers'] = this.centers;
     return json;
   }
 
@@ -77,6 +83,7 @@ class Me {
         name: mapValueOfType<String>(json, r'name')!,
         email: mapValueOfType<String>(json, r'email')!,
         organizations: OrganizationAccess.listFromJson(json[r'organizations']),
+        centers: CenterAccess.listFromJson(json[r'centers']),
       );
     }
     return null;
@@ -128,6 +135,7 @@ class Me {
     'name',
     'email',
     'organizations',
+    'centers',
   };
 }
 

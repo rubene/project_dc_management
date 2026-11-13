@@ -1,6 +1,7 @@
 import { GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { ulid } from "ulid";
 import { signedIn, signedUp } from "./access.js";
+import { centerAccess, rolesOf } from "./centerPeople.js";
 import { json, parseBody } from "./http.js";
 import { writeOnce, createOnly } from "./idempotency.js";
 import { keys, queryByPrefix } from "./keys.js";
@@ -51,5 +52,9 @@ export const getMe = signedUp(async ({ db, tableName }, _request, { personId }) 
     organizations: access
       .filter((item) => item.type === "OrganizationAccess")
       .map((item) => ({ id: item.orgId, name: item.orgName, roles: item.roles })),
+    // A Center whose last Role was removed keeps its item, without Roles.
+    centers: access
+      .filter((item) => item.type === "CenterAccess" && rolesOf(item).length > 0)
+      .map(centerAccess),
   });
 });

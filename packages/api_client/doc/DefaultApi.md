@@ -9,16 +9,72 @@ All URIs are relative to *http://localhost*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
+[**acceptInvitation**](DefaultApi.md#acceptinvitation) | **POST** /centers/{centerId}/invitations/accept | Accept an invitation to a Center and take its Role there
 [**addCenter**](DefaultApi.md#addcenter) | **POST** /organizations/{orgId}/centers | Add a Center to an Organization the signed-in person owns
+[**appointSelfAsAdmin**](DefaultApi.md#appointselfasadmin) | **PUT** /centers/{centerId}/admins/{personId} | Make the signed-in Owner an Admin of one of their Centers
 [**changeCenter**](DefaultApi.md#changecenter) | **PATCH** /centers/{centerId} | Change a Center's timezone, keeping its history
+[**createInvitation**](DefaultApi.md#createinvitation) | **POST** /centers/{centerId}/invitations | Invite a person to a Center, for an Owner of its Organization
 [**createOrganization**](DefaultApi.md#createorganization) | **POST** /organizations | Create an Organization with its first Center, owned by the signed-in person
-[**getCenter**](DefaultApi.md#getcenter) | **GET** /centers/{centerId} | A Center's profile, for an Owner of its Organization
+[**getCenter**](DefaultApi.md#getcenter) | **GET** /centers/{centerId} | A Center's profile, for an Owner of its Organization or an Admin of the Center
 [**getCenterHistory**](DefaultApi.md#getcenterhistory) | **GET** /centers/{centerId}/history | Every version of a Center's profile, oldest first
 [**getHealth**](DefaultApi.md#gethealth) | **GET** /health | Check that the API is up
 [**getMe**](DefaultApi.md#getme) | **GET** /me | The signed-in person
+[**listAdmins**](DefaultApi.md#listadmins) | **GET** /centers/{centerId}/admins | A Center's Admins, for an Owner of its Organization or an Admin of the Center
 [**listCenters**](DefaultApi.md#listcenters) | **GET** /organizations/{orgId}/centers | The Centers of an Organization the signed-in person owns
+[**removeAdmin**](DefaultApi.md#removeadmin) | **DELETE** /centers/{centerId}/admins/{personId} | Take the Admin Role away from a person at a Center
 [**signUp**](DefaultApi.md#signup) | **PUT** /me | Sign up the person behind the current login
 
+
+# **acceptInvitation**
+> CenterAccess acceptInvitation(centerId, invitationAcceptance)
+
+Accept an invitation to a Center and take its Role there
+
+Accepting the same invitation again returns the same result, so the app can retry. 
+
+### Example
+```dart
+import 'package:dc_api_client/api.dart';
+// TODO Configure HTTP Bearer authorization: cognito
+// Case 1. Use String Token
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken('YOUR_ACCESS_TOKEN');
+// Case 2. Use Function which generate token.
+// String yourTokenGeneratorFunction() { ... }
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken(yourTokenGeneratorFunction);
+
+final api_instance = DefaultApi();
+final centerId = centerId_example; // String | 
+final invitationAcceptance = InvitationAcceptance(); // InvitationAcceptance | 
+
+try {
+    final result = api_instance.acceptInvitation(centerId, invitationAcceptance);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->acceptInvitation: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **centerId** | **String**|  | 
+ **invitationAcceptance** | [**InvitationAcceptance**](InvitationAcceptance.md)|  | 
+
+### Return type
+
+[**CenterAccess**](CenterAccess.md)
+
+### Authorization
+
+[cognito](../README.md#cognito)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **addCenter**
 > CenterProfile addCenter(orgId, newCenter)
@@ -69,6 +125,57 @@ Name | Type | Description  | Notes
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **appointSelfAsAdmin**
+> Admin appointSelfAsAdmin(centerId, personId)
+
+Make the signed-in Owner an Admin of one of their Centers
+
+`personId` must be the signed-in Owner's own. Anyone else becomes an Admin by accepting an invitation. Appointing an Owner who's already an Admin changes nothing. 
+
+### Example
+```dart
+import 'package:dc_api_client/api.dart';
+// TODO Configure HTTP Bearer authorization: cognito
+// Case 1. Use String Token
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken('YOUR_ACCESS_TOKEN');
+// Case 2. Use Function which generate token.
+// String yourTokenGeneratorFunction() { ... }
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken(yourTokenGeneratorFunction);
+
+final api_instance = DefaultApi();
+final centerId = centerId_example; // String | 
+final personId = personId_example; // String | 
+
+try {
+    final result = api_instance.appointSelfAsAdmin(centerId, personId);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->appointSelfAsAdmin: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **centerId** | **String**|  | 
+ **personId** | **String**|  | 
+
+### Return type
+
+[**Admin**](Admin.md)
+
+### Authorization
+
+[cognito](../README.md#cognito)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **changeCenter**
 > CenterProfile changeCenter(centerId, centerChange)
 
@@ -108,6 +215,57 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**CenterProfile**](CenterProfile.md)
+
+### Authorization
+
+[cognito](../README.md#cognito)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **createInvitation**
+> Invitation createInvitation(centerId, newInvitation)
+
+Invite a person to a Center, for an Owner of its Organization
+
+The response holds the invitation's token, the only time it's shown. The app sends it to the person as a link. Only a login with the invitation's email can accept it, within 7 days. Sending the same request again makes another invitation, and an unused one expires. 
+
+### Example
+```dart
+import 'package:dc_api_client/api.dart';
+// TODO Configure HTTP Bearer authorization: cognito
+// Case 1. Use String Token
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken('YOUR_ACCESS_TOKEN');
+// Case 2. Use Function which generate token.
+// String yourTokenGeneratorFunction() { ... }
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken(yourTokenGeneratorFunction);
+
+final api_instance = DefaultApi();
+final centerId = centerId_example; // String | 
+final newInvitation = NewInvitation(); // NewInvitation | 
+
+try {
+    final result = api_instance.createInvitation(centerId, newInvitation);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->createInvitation: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **centerId** | **String**|  | 
+ **newInvitation** | [**NewInvitation**](NewInvitation.md)|  | 
+
+### Return type
+
+[**Invitation**](Invitation.md)
 
 ### Authorization
 
@@ -170,7 +328,7 @@ Name | Type | Description  | Notes
 # **getCenter**
 > CenterProfile getCenter(centerId)
 
-A Center's profile, for an Owner of its Organization
+A Center's profile, for an Owner of its Organization or an Admin of the Center
 
 ### Example
 ```dart
@@ -341,6 +499,53 @@ This endpoint does not need any parameter.
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
+# **listAdmins**
+> AdminList listAdmins(centerId)
+
+A Center's Admins, for an Owner of its Organization or an Admin of the Center
+
+### Example
+```dart
+import 'package:dc_api_client/api.dart';
+// TODO Configure HTTP Bearer authorization: cognito
+// Case 1. Use String Token
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken('YOUR_ACCESS_TOKEN');
+// Case 2. Use Function which generate token.
+// String yourTokenGeneratorFunction() { ... }
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken(yourTokenGeneratorFunction);
+
+final api_instance = DefaultApi();
+final centerId = centerId_example; // String | 
+
+try {
+    final result = api_instance.listAdmins(centerId);
+    print(result);
+} catch (e) {
+    print('Exception when calling DefaultApi->listAdmins: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **centerId** | **String**|  | 
+
+### Return type
+
+[**AdminList**](AdminList.md)
+
+### Authorization
+
+[cognito](../README.md#cognito)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
 # **listCenters**
 > CenterList listCenters(orgId)
 
@@ -376,6 +581,56 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**CenterList**](CenterList.md)
+
+### Authorization
+
+[cognito](../README.md#cognito)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **removeAdmin**
+> removeAdmin(centerId, personId)
+
+Take the Admin Role away from a person at a Center
+
+For an Owner of the Center's Organization, who may remove themselves. It takes effect on the person's next request, and cancels the person's invitations to the Center that they haven't accepted. Removing someone who isn't an Admin changes nothing else, so the app can retry. 
+
+### Example
+```dart
+import 'package:dc_api_client/api.dart';
+// TODO Configure HTTP Bearer authorization: cognito
+// Case 1. Use String Token
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken('YOUR_ACCESS_TOKEN');
+// Case 2. Use Function which generate token.
+// String yourTokenGeneratorFunction() { ... }
+//defaultApiClient.getAuthentication<HttpBearerAuth>('cognito').setAccessToken(yourTokenGeneratorFunction);
+
+final api_instance = DefaultApi();
+final centerId = centerId_example; // String | 
+final personId = personId_example; // String | 
+
+try {
+    api_instance.removeAdmin(centerId, personId);
+} catch (e) {
+    print('Exception when calling DefaultApi->removeAdmin: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **centerId** | **String**|  | 
+ **personId** | **String**|  | 
+
+### Return type
+
+void (empty response body)
 
 ### Authorization
 

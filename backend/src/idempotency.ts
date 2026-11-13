@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { TransactionCanceledException } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { TransactWriteCommand, type DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import type { mustHoldRole } from "./centerPeople.js";
 import { itemExists, itemIsNew } from "./keys.js";
 
 // Creates and changes are conditional transactions whose first item keeps a
@@ -49,7 +50,11 @@ export function replaceIfVersion(tableName: string, item: Item, expectedVersion:
   };
 }
 
-type Write = ReturnType<typeof createOnly> | ReturnType<typeof mustExist> | ReturnType<typeof replaceIfVersion>;
+type Write =
+  | ReturnType<typeof createOnly>
+  | ReturnType<typeof mustExist>
+  | ReturnType<typeof mustHoldRole>
+  | ReturnType<typeof replaceIfVersion>;
 
 export type WriteOutcome =
   | { outcome: "written" }
@@ -58,7 +63,7 @@ export type WriteOutcome =
   // A different request got there first: an item with the same ID already
   // exists, or the head has moved past the version a change expected.
   | { outcome: "conflict" }
-  // A `mustExist` check failed.
+  // A `mustExist` or `mustHoldRole` check failed.
   | { outcome: "refused" };
 
 // Writes a create or change transaction once. Its first write is a

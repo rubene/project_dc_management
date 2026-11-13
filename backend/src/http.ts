@@ -8,6 +8,11 @@ export function json(statusCode: number, body: unknown): APIGatewayProxyResult {
   };
 }
 
+// A success with nothing to return.
+export function noContent(): APIGatewayProxyResult {
+  return { statusCode: 204, headers: {}, body: "" };
+}
+
 // The request's JSON body, or undefined if it has none or it isn't JSON.
 export function parseBody(event: APIGatewayProxyEvent): unknown {
   if (!event.body) return undefined;

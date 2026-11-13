@@ -12,6 +12,7 @@ Name | Type | Description | Notes
 **name** | **String** |  | 
 **email** | **String** |  | 
 **organizations** | [**List<OrganizationAccess>**](OrganizationAccess.md) |  | [default to const []]
+**centers** | [**List<CenterAccess>**](CenterAccess.md) |  | [default to const []]
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

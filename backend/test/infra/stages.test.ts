@@ -18,6 +18,15 @@ describe.each(stageNames)("the %s stage", (stage) => {
     expect(stack.region).toBe("us-west-2");
   });
 
+  // Short-lived items such as invitations set `ttl` (docs/data-model.md).
+  test("lets DynamoDB delete expired items from the main table", () => {
+    const { template } = synth(stage);
+
+    template.hasResourceProperties("AWS::DynamoDB::GlobalTable", {
+      TimeToLiveSpecification: { AttributeName: "ttl", Enabled: true },
+    });
+  });
+
   test("publishes the API's URL for the deployed check", () => {
     const { template } = synth(stage);
 

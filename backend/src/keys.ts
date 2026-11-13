@@ -7,7 +7,7 @@ import { mainTableKeys } from "./mainTable.js";
 const { partitionKey, sortKey } = mainTableKeys;
 
 type Key = { [partitionKey]: string; [sortKey]: string };
-type Prefix = { partition: string; sortPrefix: string };
+export type Prefix = { partition: string; sortPrefix: string };
 
 function key(partition: string, sort: string): Key {
   return { [partitionKey]: partition, [sortKey]: sort };
@@ -21,6 +21,8 @@ export const keys = {
   personAccess: (personId: string): Prefix => ({ partition: `PERSON#${personId}`, sortPrefix: "ACCESS#" }),
   personOrgAccess: ({ personId, orgId }: { personId: string; orgId: string }) =>
     key(`PERSON#${personId}`, `ACCESS#O#${orgId}`),
+  personCenterAccess: ({ personId, centerId }: { personId: string; centerId: string }) =>
+    key(`PERSON#${personId}`, `ACCESS#C#${centerId}`),
 
   organization: (orgId: string) => key(`ORG#${orgId}`, "ORG"),
   // A5: whether a person is an Owner of an Organization.
@@ -46,7 +48,21 @@ function centerKeys(centerId: string) {
     profileHistory: (version: number) => key(partition, `H#CENTER#${String(version).padStart(6, "0")}`),
     // Every version of the profile, oldest first.
     profileVersions: { partition, sortPrefix: "H#CENTER#" } satisfies Prefix,
+    // A3: a person's Roles at the Center, which access checks read.
+    person: (personId: string) => key(`${partition}#PEOPLE`, `PERSON#${personId}`),
+    // A7: the Center's people and their Roles.
+    people: { partition: `${partition}#PEOPLE`, sortPrefix: "PERSON#" } satisfies Prefix,
+    // A11: the invitation behind an invitation link. Only the token's hash is
+    // stored, so reading the table doesn't give anyone a working link.
+    invitation: (tokenHash: string) => key(`${partition}#PEOPLE`, `INVITE#${tokenHash}`),
+    // A12: the Center's invitations.
+    invitations: { partition: `${partition}#PEOPLE`, sortPrefix: "INVITE#" } satisfies Prefix,
   };
+}
+
+// The key of an item read from the table.
+export function keyOf(item: Record<string, unknown>): Key {
+  return key(item[partitionKey] as string, item[sortKey] as string);
 }
 
 // The parts of a Query that read one partition's items whose sort key starts
