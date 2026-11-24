@@ -142,7 +142,8 @@ class AdminHome extends StatefulWidget {
 }
 
 class _AdminHomeState extends State<AdminHome> {
-  _Stage _stage = const _SigningIn();
+  // Most people opening an invitation link don't have an account yet.
+  late _Stage _stage = widget.invitation != null ? const _CreatingAccount() : const _SigningIn();
 
   /// The invitation still to accept, until it's been tried once.
   late InvitationLink? _invitation = widget.invitation;
@@ -213,11 +214,13 @@ class _AdminHomeState extends State<AdminHome> {
           SignInStep.authenticatorCode => const _EnteringAuthenticatorCode(),
         }),
         onCreateAccount: () => _go(const _CreatingAccount()),
+        invited: _invitation != null,
       ),
       _CreatingAccount() => SignUpScreen(
         auth: auth,
         onSignedUp: (email, password) => _go(_ConfirmingEmail(email, password)),
         onSignIn: () => _go(const _SigningIn()),
+        invited: _invitation != null,
       ),
       _ConfirmingEmail(:final email, :final password) => ConfirmEmailScreen(
         auth: auth,

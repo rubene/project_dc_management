@@ -63,6 +63,10 @@ class AmplifyAuth implements Auth {
 
   @override
   Future<SignInStep> signIn({required String email, required String password}) => _explained(() async {
+    // The app always starts signed out, but Amplify keeps the last session in
+    // the browser, and refuses to sign in over it. Opening an invitation link
+    // where someone else is signed in is the common case.
+    if (await isSignedIn()) await Amplify.Auth.signOut();
     final result = await Amplify.Auth.signIn(username: email, password: password);
     return _stepOf(result.nextStep.signInStep);
   });

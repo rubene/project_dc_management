@@ -32,10 +32,17 @@ Future<void> acceptedAdmin(WidgetTester tester, FakeBackend backend, String cent
   backend.addPerson('ari@example.test', 'pw-2', name: 'Ari Admin');
   final token = backend.addInvitation(centerId, 'ari@example.test');
   await tester.pumpWidget(app(backend, invitation: InvitationLink(centerId: centerId, token: token)));
-  await signIn(tester, 'ari@example.test', 'pw-2');
+  await signInFromLink(tester, 'ari@example.test', 'pw-2');
   await backend.auth.signOut();
   // A fresh start, as when the page is opened again.
   await tester.pumpWidget(const SizedBox());
+}
+
+/// Signs in with an existing account from the page an invitation link opens.
+Future<void> signInFromLink(WidgetTester tester, String email, String password) async {
+  await tester.pumpAndSettle();
+  await tap(tester, 'I already have an account');
+  await signIn(tester, email, password);
 }
 
 void main() {
@@ -65,7 +72,7 @@ void main() {
     final token = backend.addInvitation(centerId, 'ari@example.test');
 
     await tester.pumpWidget(app(backend, invitation: InvitationLink(centerId: centerId, token: token)));
-    await signIn(tester, 'ari@example.test', 'pw-2');
+    await signInFromLink(tester, 'ari@example.test', 'pw-2');
 
     expect(backend.isAdmin(centerId, 'ari@example.test'), isTrue);
     expect(find.text('Little Oaks Downtown'), findsOneWidget);
@@ -79,7 +86,10 @@ void main() {
     await tester.pumpWidget(app(backend, invitation: InvitationLink(centerId: centerId, token: token)));
     await tester.pumpAndSettle();
 
-    await tap(tester, 'Create an account');
+    // The link opens on creating an account, and says why.
+    expect(find.text("You've been invited to DC Management"), findsOneWidget);
+    expect(find.textContaining('the email address the invitation was sent to'), findsOneWidget);
+    expect(find.textContaining('set up your Organization'), findsNothing);
     await enter(tester, 'Email', 'ari@example.test');
     await enter(tester, 'Password', 'a-long-password-1');
     await tap(tester, 'Create account');
@@ -110,7 +120,7 @@ void main() {
     final token = backend.addInvitation(centerId, 'ari@example.test');
 
     await tester.pumpWidget(app(backend, invitation: InvitationLink(centerId: centerId, token: token)));
-    await signIn(tester, 'sam@example.test', 'pw-3');
+    await signInFromLink(tester, 'sam@example.test', 'pw-3');
 
     expect(find.textContaining('This invitation is for a different email address'), findsOneWidget);
     expect(backend.isAdmin(centerId, 'sam@example.test'), isFalse);
@@ -125,7 +135,7 @@ void main() {
       ..addPerson('ari@example.test', 'pw-2', name: 'Ari Admin');
     final token = backend.addInvitation(centerId, 'ari@example.test');
     await tester.pumpWidget(app(backend, invitation: InvitationLink(centerId: centerId, token: token)));
-    await signIn(tester, 'sam@example.test', 'pw-3');
+    await signInFromLink(tester, 'sam@example.test', 'pw-3');
 
     await tap(tester, 'Sign out');
     await signIn(tester, 'ari@example.test', 'pw-2');
@@ -140,7 +150,7 @@ void main() {
     final token = backend.addInvitation(centerId, 'ari@example.test');
     backend.failNext('POST /centers/$centerId/invitations/accept');
     await tester.pumpWidget(app(backend, invitation: InvitationLink(centerId: centerId, token: token)));
-    await signIn(tester, 'ari@example.test', 'pw-2');
+    await signInFromLink(tester, 'ari@example.test', 'pw-2');
     expect(find.textContaining("Couldn't accept the invitation"), findsOneWidget);
 
     await tap(tester, 'Sign out');
@@ -156,7 +166,7 @@ void main() {
     final token = backend.addInvitation(centerId, 'bo@example.test');
 
     await tester.pumpWidget(app(backend, invitation: InvitationLink(centerId: centerId, token: token)));
-    await signIn(tester, 'bo@example.test', 'pw-4');
+    await signInFromLink(tester, 'bo@example.test', 'pw-4');
 
     expect(find.text('Little Oaks Downtown'), findsOneWidget);
     expect(find.text('You are an Admin here'), findsOneWidget);
