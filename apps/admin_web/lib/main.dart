@@ -8,6 +8,7 @@ import 'app.dart';
 import 'auth/amplify_auth.dart';
 import 'auth/id_token_authentication.dart';
 import 'browser_timezone.dart';
+import 'invitation_link.dart';
 
 // The Admin web app's CloudFront distribution also serves the API under /v1,
 // so the app calls its own origin and needs no CORS. Set API_URL to point a
@@ -24,7 +25,13 @@ Future<void> main() async {
   final apiUrl = _apiUrl.isNotEmpty ? _apiUrl : Uri.base.resolve('/v1').toString();
   final auth = await AmplifyAuth.configure(await _cognitoConfig());
   final api = DefaultApi(ApiClient(basePath: apiUrl, authentication: IdTokenAuthentication(auth)));
-  runApp(DcAdminWebApp(auth: auth, api: api, browserTimezone: browserTimezone()));
+  runApp(DcAdminWebApp(
+    auth: auth,
+    api: api,
+    browserTimezone: browserTimezone(),
+    appUrl: Uri.base,
+    invitation: InvitationLink.fromUri(Uri.base),
+  ));
 }
 
 Future<CognitoConfig> _cognitoConfig() async {

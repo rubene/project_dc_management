@@ -19,6 +19,16 @@ class FakeBackend {
   final _centers = <String, List<Map<String, Object?>>>{};
   int _nextPerson = 1;
 
+  /// The person IDs of each Center's Admins, by Center ID.
+  final _admins = <String, Set<String>>{};
+
+  /// Invitations, by token: the Center ID and the invited email.
+  final _invitations = <String, ({String centerId, String email})>{};
+
+  /// Who accepted each used invitation, by token.
+  final _acceptedBy = <String, String>{};
+  int _nextToken = 1;
+
   /// Requests the API received, as "METHOD /path".
   final requests = <String>[];
 
@@ -49,11 +59,47 @@ class FakeBackend {
     _people[personId] = {'personId': personId, 'name': name, 'email': email};
   }
 
+  /// An Organization with one Center, owned by a person already added with
+  /// [addPerson]. Returns the Center's ID.
+  String addOrganization({required String ownerEmail, required String name, required String centerName}) {
+    final orgId = 'org-${_organizations.length + 1}';
+    final centerId = '$orgId-center-1';
+    _organizations[orgId] = {'id': orgId, 'name': name, 'ownerId': _personIdFor(ownerEmail)};
+    _centers[orgId] = [
+      {'id': centerId, 'orgId': orgId, 'name': centerName, 'currency': 'CAD', 'timezone': 'America/Vancouver', 'version': 1},
+    ];
+    return centerId;
+  }
+
+  /// An invitation to be a Center's Admin, as an Owner sent it. Returns its token.
+  String addInvitation(String centerId, String email) {
+    final token = 'token-${_nextToken++}';
+    _invitations[token] = (centerId: centerId, email: email.trim().toLowerCase());
+    return token;
+  }
+
+  /// The email an unused invitation is for.
+  String? invitedEmail(String token) => _invitations[token]?.email;
+
+  /// Makes the next request to "METHOD /path" fail as a server error would.
+  void failNext(String request) => _failing.add(request);
+  final _failing = <String>{};
+
+  /// Whether a person is an Admin of a Center.
+  bool isAdmin(String centerId, String email) => _admins[centerId]?.contains(_personIdFor(email)) ?? false;
+
   String? _personIdFor(String email) => _logins[email]?.personId;
+
+  Map<String, Object?>? _center(String centerId) =>
+      _centers.values.expand((centers) => centers).where((center) => center['id'] == centerId).firstOrNull;
+
+  Map<String, Object?> _centerAccess(Map<String, Object?> center) =>
+      {'id': center['id'], 'name': center['name'], 'orgId': center['orgId'], 'roles': ['Admin']};
 
   Future<http.Response> _handle(http.Request request) async {
     final path = request.url.path.replaceFirst('/v1', '');
     requests.add('${request.method} $path');
+    if (_failing.remove('${request.method} $path')) return _json(500, {'message': 'Internal server error'});
     final claims = _claimsFrom(request.headers['authorization']);
     if (claims == null) return _json(401, {'message': 'Unauthorized'});
     final email = claims['email']!;
@@ -77,7 +123,11 @@ class FakeBackend {
           .where((org) => org['ownerId'] == personId)
           .map((org) => {'id': org['id'], 'name': org['name'], 'roles': ['Owner']})
           .toList();
-      return _json(200, {..._people[personId]!, 'organizations': organizations, 'centers': <Object>[]});
+      return _json(200, {..._people[personId]!, 'organizations': organizations, 'centers': [
+          for (final center in _centers.values.expand((centers) => centers))
+            if (_admins[center['id']]?.contains(personId) ?? false) _centerAccess(center),
+        ],
+      });
     }
     if (request.method == 'POST' && path == '/organizations') {
       final center = {...body!['center'] as Map<String, Object?>, 'orgId': body['id'], 'version': 1};
@@ -101,6 +151,71 @@ class FakeBackend {
         _centers[orgId]!.add(center);
         return _json(201, center);
       }
+    }
+    final centerPath = RegExp(r'^/centers/([^/]+)(/.*)?$').firstMatch(path);
+    if (centerPath != null) {
+      return _centerRequest(request.method, centerPath.group(1)!, centerPath.group(2) ?? '', personId, email, body);
+    }
+    return _json(404, {'message': 'Not found'});
+  }
+
+  // Requests under /centers/{centerId}, with the same access rules as the API.
+  http.Response _centerRequest(
+    String method, String centerId, String rest, String personId, String email, Map<String, Object?>? body,
+  ) {
+    final center = _center(centerId);
+    final notFound = _json(404, {'message': 'Center not found'});
+    if (center == null) return notFound;
+    final isOwner = _organizations[center['orgId']]?['ownerId'] == personId;
+    final admins = _admins[centerId] ??= {};
+
+    if (method == 'POST' && rest == '/invitations/accept') {
+      final token = body!['token']! as String;
+      final invitation = _invitations[token];
+      final acceptedBy = _acceptedBy[token];
+      if (invitation == null || invitation.centerId != centerId || (acceptedBy != null && acceptedBy != personId)) {
+        return _json(404, {'message': "This invitation doesn't exist, has expired or has already been used"});
+      }
+      if (invitation.email != email.toLowerCase()) {
+        return _json(403, {
+          'message': 'This invitation is for a different email address. Sign in with that one, confirmed, to accept it.',
+        });
+      }
+      // Like the API, accepting again gives nothing back that was removed.
+      if (acceptedBy != null && !admins.contains(personId)) {
+        return _json(404, {'message': "This invitation doesn't exist, has expired or has already been used"});
+      }
+      _acceptedBy[token] = personId;
+      admins.add(personId);
+      return _json(200, _centerAccess(center));
+    }
+    if (!isOwner && !admins.contains(personId)) return notFound;
+
+    if (method == 'GET' && rest == '') return _json(200, center);
+    if (method == 'GET' && rest == '/admins') {
+      return _json(200, {'admins': [for (final id in admins) _people[id]!]});
+    }
+    if (!isOwner) return notFound;
+    if (method == 'POST' && rest == '/invitations') {
+      final token = addInvitation(centerId, body!['email']! as String);
+      return _json(201, {...body, 'token': token, 'centerId': centerId, 'expiresAt': '2026-01-08T00:00:00.000Z'});
+    }
+    final adminPath = RegExp(r'^/admins/([^/]+)$').firstMatch(rest);
+    if (adminPath != null && method == 'PUT') {
+      if (adminPath.group(1) != personId) {
+        return _json(400, {'message': 'An Owner can only appoint themselves directly. Invite anyone else.'});
+      }
+      admins.add(personId);
+      return _json(200, _people[personId]!);
+    }
+    if (adminPath != null && method == 'DELETE') {
+      final removed = adminPath.group(1)!;
+      admins.remove(removed);
+      // Like the API, removing someone cancels their unused invitations here.
+      final removedEmail = (_people[removed]?['email'] as String?)?.toLowerCase();
+      _invitations.removeWhere((token, invitation) =>
+          invitation.centerId == centerId && invitation.email == removedEmail && !_acceptedBy.containsKey(token));
+      return http.Response('', 204);
     }
     return _json(404, {'message': 'Not found'});
   }

@@ -5,9 +5,18 @@ import 'form.dart';
 
 /// Signing in, for a person who already has an account.
 class SignInScreen extends StatefulWidget {
-  const SignInScreen({super.key, required this.auth, required this.onSignedIn, required this.onCreateAccount});
+  const SignInScreen({
+    super.key,
+    required this.auth,
+    required this.onSignedIn,
+    required this.onCreateAccount,
+    this.invited = false,
+  });
 
   final Auth auth;
+
+  /// Whether the app was opened with an invitation link.
+  final bool invited;
   final void Function(SignInStep step) onSignedIn;
   final VoidCallback onCreateAccount;
 
@@ -38,6 +47,7 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   Widget build(BuildContext context) => FormPage(
     title: 'Sign in to DC Management',
+    message: widget.invited ? 'Sign in with the email address the invitation was sent to.' : null,
     error: _error,
     busy: _busy,
     actionLabel: 'Sign in',
@@ -52,9 +62,19 @@ class _SignInScreenState extends State<SignInScreen> {
 
 /// Creating a login. Cognito emails a code to confirm the address.
 class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key, required this.auth, required this.onSignedUp, required this.onSignIn});
+  const SignUpScreen({
+    super.key,
+    required this.auth,
+    required this.onSignedUp,
+    required this.onSignIn,
+    this.invited = false,
+  });
 
   final Auth auth;
+
+  /// Whether the app was opened with an invitation link, so the person joins
+  /// a Center rather than setting up an Organization.
+  final bool invited;
   final void Function(String email, String password) onSignedUp;
   final VoidCallback onSignIn;
 
@@ -82,8 +102,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) => FormPage(
-    title: 'Create your DC Management account',
-    message: "You'll set up your Organization and its first Center next.",
+    title: widget.invited ? "You've been invited to DC Management" : 'Create your DC Management account',
+    message: widget.invited
+        ? 'Create an account with the email address the invitation was sent to. You\'ll join the Center next.'
+        : "You'll set up your Organization and its first Center next.",
     error: _error,
     busy: _busy,
     actionLabel: 'Create account',
