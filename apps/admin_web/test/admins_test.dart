@@ -64,6 +64,8 @@ void main() {
     expect(shown, startsWith('https://admin.example.test/?'));
     expect(link.centerId, centerId);
     expect(backend.invitedEmail(link.token), 'ari@example.test');
+    // A screen reader reads the link out.
+    expect(find.bySemanticsLabel(shown), findsOneWidget);
   });
 
   testWidgets('an invited Admin opens the link, signs in and runs their Center', (tester) async {

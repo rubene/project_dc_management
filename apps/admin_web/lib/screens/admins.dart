@@ -181,7 +181,8 @@ class _InviteAdminScreenState extends State<InviteAdminScreen> {
         message: 'It works once, for ${_email.text.trim()}, for 7 days. This is the only time it\'s shown.',
         actionLabel: 'Done',
         onAction: () => Navigator.of(context).pop(),
-        children: [SelectableText(link.toString())],
+        // Named by the link itself, so a screen reader reads it out.
+        children: [SelectableText(link.toString(), semanticsLabel: link.toString())],
       );
     }
     return FormPage(

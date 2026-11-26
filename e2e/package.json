@@ -1,0 +1,19 @@
+{
+  "name": "dc-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Browser tests of the Admin web app against a deployed stage.",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1178.0",
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.11",
+    "typescript": "^7.0.2"
+  }
+}
